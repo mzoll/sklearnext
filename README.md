@@ -1,2 +1,2 @@
 # sklearnext
-Some extentions to sklearn
+Some very smart extentions to sklearn
