@@ -11,7 +11,7 @@ import datetime as dt
 from sklearn.base import TransformerMixin 
 from sklearn.utils import column_or_1d
 from sklearn.utils.validation import check_is_fitted
-from .base import assert_dfncol
+from Transformers import assert_dfncol
 
 class LambdaTransformer(TransformerMixin, object):
     """ specify a lambda function, which can contain named arguments
@@ -63,6 +63,11 @@ class LambdaTransformer(TransformerMixin, object):
 class LabelDummyTransformer(TransformerMixin, object):
     """ one hot encode label column (encountering labels not present in training raises error)
     
+    Parameters
+    ----------
+    sparse_output : bool
+        return a sparse DataFrame (true), else dense DataFrame (false) (default: True)
+    
     Examples
     --------
     df = pd.DataFrame({'A':[3,3,3,2,2,1]})
@@ -75,17 +80,17 @@ class LabelDummyTransformer(TransformerMixin, object):
     >>> 4   True  False  False
     >>> 5  False  False   True
     """
-    def __init__(self):
-        pass
+    def __init__(self, sparse_output = True):
+        self.sparse_output = sparse_output
     def className_to_dummyName_(self, cn):
         return '_'.join([self.incols[0], str(cn)])    
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
         self.incols = X.columns
         self.classes_ = np.unique(X)
-        self.feature_names = [ self.className_to_dummyName_(c) for c in self.classes_ ]
+        self.feature_names_ = [ self.className_to_dummyName_(c) for c in self.classes_ ]
         #-----------------
-        s_dummy = pd.Series( { e:False for e in self.feature_names } )
+        s_dummy = pd.Series( { e:False for e in self.feature_names_ } )
         def xthelper(c):
             sx = s_dummy.copy()
             sx[self.className_to_dummyName_(c) ] = True
@@ -123,10 +128,13 @@ class LabelDummyTransformer(TransformerMixin, object):
             except:
                 raise ValueError("New label encountered: %s" % (v))
         Xt = X.apply(xthelper, axis=1)
-        return Xt.to_sparse(fill_value=False)
+        
+        if self.sparse_output:
+            return Xt.to_sparse(fill_value=False)
+        return Xt
    
     def get_feature_names(self):
-        return self.feature_names
+        return self.feature_names_
         
       
 class NLabelDummyTransformer(TransformerMixin, object):
@@ -135,6 +143,11 @@ class NLabelDummyTransformer(TransformerMixin, object):
     ----------
     n_many : int
         Number of labelclasses to treat
+    dummy_na : bool
+        if a encountered label is not with the selected n_many most frequent ones, mark it with a dedicated 'NA'-column (default: False)
+    sparse_output : bool
+        return a sparse DataFrame (true), else dense DataFrame (false) (default: True)
+        
     Examples
     --------
     df = pd.DataFrame({'A':[3,3,3,2,2,1]})
@@ -147,9 +160,10 @@ class NLabelDummyTransformer(TransformerMixin, object):
     >>> 4   True  False  False
     >>> 5  False  False   True
     """
-    def __init__(self, n_many=sys.maxsize, dummy_na = False):
+    def __init__(self, n_many=sys.maxsize, dummy_na = False, sparse_output = True):
         self.n_many = n_many
         self.dummy_na = dummy_na
+        self.sparse_output = sparse_output
     def className_to_dummyName_(self, cn):
         return '_'.join([self.incols[0], str(cn)])    
     def fit(self, X, y=None, **fit_params):
@@ -158,9 +172,9 @@ class NLabelDummyTransformer(TransformerMixin, object):
         
         uc_ranked = sorted(np.vstack(np.unique(X, return_counts=True)).T, key= lambda uc: uc[1], reverse=True)             
         self.classes_ = [ uc[0] for uc in uc_ranked[:min(self.n_many, len(uc_ranked)+1)] ]
-        self.feature_names = [ self.className_to_dummyName_(c) for c in self.classes_ ]
+        self.feature_names_ = [ self.className_to_dummyName_(c) for c in self.classes_ ]
         #-----------------
-        fd = { e:False for e in self.feature_names }
+        fd = { e:False for e in self.feature_names_ }
         if self.dummy_na:
             fd.update({ self.className_to_dummyName_('NA'):False })
         s_dummy = pd.Series( fd )     
@@ -185,9 +199,8 @@ class NLabelDummyTransformer(TransformerMixin, object):
         invar_ = self.incols[0]
         
         if X.shape[0]==1: #optimize for single row evals
-            try:
-                df = self.transdfdict[X[invar_].values[0]]
-            except:
+            df = self.transdfdict.get(X[invar_].values[0])            
+            if df is None:
                 if self.dummy_na:
                     df = self.transdfdict['NA']
                 else:
@@ -196,19 +209,21 @@ class NLabelDummyTransformer(TransformerMixin, object):
             return df
         
         def xthelper(v):
-            try:
-                return self.transdict[v]
-            except:
-                if self.dummy_na:
-                    return self.transdict['NA']
-                else:
-                    return self.transdict[None]
-        
+            r = self.transdict[v]
+            if r is not None:
+                return r    
+            if self.dummy_na:
+                return self.transdict['NA']
+            return self.transdict[None]
+                
         Xt = X[invar_].apply(xthelper)
-        return Xt.to_sparse(fill_value=False)
+        
+        if self.sparse_output:
+            return Xt.to_sparse(fill_value=False)
+        return Xt
    
     def get_feature_names(self):
-        return self.feature_names
+        return self.feature_names_
     
     
 #=============================================================
@@ -218,52 +233,25 @@ class HourWeekdayDayMonthYearTransformer(TransformerMixin):
     """ transform a single column of datetimeobjects into its components : 
     hour(float), weekday(uint), day(uint), month(uint), year(uint)
     """ 
-    def __init__(self, varname, sb_list = []):
-        import datetime as dt
-    def fit(self, X, y=None, **fit_params):
-        assert_dfncol(X, 1)
-        self.varname = X.columns[0]
-        self.feature_names = [self.varname+'_'+suffix for suffix in ['hour','weekday','day','month','year']]
-        return self
-    def transform(self, X):
-        def iterhelper(t):
-            return pd.Series([t.hour + t.minute/60., int(t.weekday()), int(t.day), int(t.month), int(t.year)])
-        Xt = X[self.varname].apply(iterhelper)
-        Xt.columns = self.feature_names
-        
-        Xt[self.varname+'_weekday'] = Xt[self.varname+'_weekday'].astype('uint8')
-        Xt[self.varname+'_day'] = Xt[self.varname+'_day'].astype('uint8')
-        Xt[self.varname+'_month'] = Xt[self.varname+'_month'].astype('uint8')
-        Xt[self.varname+'_year'] = Xt[self.varname+'_year'].astype('uint8')
-        
-        return Xt
-    def get_feature_names(self):
-        return self.feature_names
-        
-
-class HourWeekdayDayMonthYearTransformer(TransformerMixin):
-    """ transform a single column of datetimeobjects into its components : 
-    hour(float), weekday(uint), day(uint), month(uint), year(uint)
-    """ 
     def __init__(self):
         import datetime as dt
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
         self.varname = X.columns[0]
-        self.feature_names = [self.varname+'_'+suffix for suffix in ['hour','weekday','day','month','year']]
+        self.feature_names_ = [self.varname+'_'+suffix for suffix in ['hour','weekday','day','month','year']]
         return self
     def transform(self, X):
         def iterhelper(t):
             return pd.Series([t.hour + t.minute/60., int(t.weekday()), int(t.day), int(t.month), int(t.year)])
         Xt = X[self.varname].apply(iterhelper)
-        Xt.columns = self.feature_names
+        Xt.columns = self.feature_names_
         Xt[self.varname+'_weekday'] = Xt[self.varname+'_weekday'].astype('uint8')
         Xt[self.varname+'_day'] = Xt[self.varname+'_day'].astype('uint8')
         Xt[self.varname+'_month'] = Xt[self.varname+'_month'].astype('uint8')
         Xt[self.varname+'_year'] = Xt[self.varname+'_year'].astype('uint8')
         return Xt
     def get_feature_names(self):
-        return self.feature_names
+        return self.feature_names_
 
 
 class DeltaSecTransformer(TransformerMixin, object):
@@ -286,7 +274,7 @@ class DeltaSecTransformer(TransformerMixin, object):
         self.incolumns = X.columns
         if len(self.incolumns) != 2:
             raise Exception('Expected to calculate the difference of two datetime columns')
-        self.feature_names = ['_'.join(X.columns)+'_diffsec']
+        self.feature_names_ = ['_'.join(X.columns)+'_diffsec']
         return self
     def transform(self, X):
         assert_dfncol(X, 2)
@@ -299,7 +287,7 @@ class DeltaSecTransformer(TransformerMixin, object):
         if self.fast_path:
             dtime = t2 - t1 
             dtime = dtime.apply(lambda v:v.total_seconds())
-            return pd.DataFrame(dtime, columns= self.feature_names)
+            return pd.DataFrame(dtime, columns= self.feature_names_)
         else: #execute line by line; check input
             def xthelper(row):
                 t1v = row[self.incolumns[0]]
@@ -311,17 +299,19 @@ class DeltaSecTransformer(TransformerMixin, object):
                 
                 return (t2v-t1v).total_seconds()
             Xt = X.apply(xthelper, axis=1)
-            return pd.DataFrame(Xt, columns= self.feature_names)
+            return pd.DataFrame(Xt, columns= self.feature_names_)
                 
     def get_feature_names(self):
-        return self.feature_names
+        return self.feature_names_
     
-    
+
+#======================================
 class SparseBinarizer(TransformerMixin, object):
     """ take an DataFrame input and just set all non-zero/non-null entries to True, everything else zero """
     def __init__(self):
         pass
     def fit(self, X, y= None, **fit_params):
+        self.feature_names_ = list(X.columns)
         return self
     def transform(self, X):
         Xt = pd.DataFrame()
@@ -330,4 +320,23 @@ class SparseBinarizer(TransformerMixin, object):
         for c in X.columns:
             Xt[c] = X[c].apply(chelper)        
         return Xt.to_sparse(fill_value=False)
+    def get_feature_names(self):
+        return self.feature_names_
+
+#=======================================
+class ObjectLengthTransformer(TransformerMixin, object):
+    """ take a singel column input and simply state the lenth of the therein contain objects """
+    def __init__(self):
+        pass
+    def fit(self, X, y= None, **fit_params):
+        assert_dfncol(X, 1)
+        self.feature_names_ = [ X.columns[0] + '_length' ]
+        return self
+    def transform(self, X):
+        Xt = pd.DataFrame(X.iloc[:,0].apply(lambda v: len(v)))
+        Xt.columns = self.feature_names_ 
+        return Xt
+    def get_feature_names(self):
+        return self.feature_names_
+    
     
