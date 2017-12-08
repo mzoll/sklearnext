@@ -11,7 +11,12 @@ import datetime as dt
 from sklearn.base import TransformerMixin 
 from sklearn.utils import column_or_1d
 from sklearn.utils.validation import check_is_fitted
-from Transformers import assert_dfncol
+
+def assert_dfncol(X, ncolumns):
+    """ convenience function; checking if X arg is dataframe with shape[.][ncolumns] """
+    assert( isinstance(X, pd.DataFrame) )
+    assert( X.shape[1] == ncolumns )
+
 
 class LambdaTransformer(TransformerMixin, object):
     """ specify a lambda function, which can contain named arguments
