@@ -415,7 +415,7 @@ class CategoryFork(TransformerMixin, object): #_BaseComposition
         for gk, Xp in X.groupby(xgroups):
             r = self.pipeline_list_[gk].predict(Xp)
             results.append( pd.Series(r, index = Xp.index) )
-        return pd.concat(results).sort_index().values
+        return pd.concat(results).reindex(X.index)
     
     def transform(self, X):
         """ depricated """
@@ -425,7 +425,7 @@ class CategoryFork(TransformerMixin, object): #_BaseComposition
         for gk, Xp in X.groupby(xgroups):
             r = self.pipeline_list_[gk].transform(Xp)
             results.append( r )
-        return pd.concat(results).sort_index()
+        return pd.concat(results).reindex(X.index)
     
     def get_feature_importances_deep(self):
         features = set( fi[0] for p in self.pipeline_list_ for fi in p.get_feature_importances() )
