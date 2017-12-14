@@ -45,10 +45,12 @@ def plot_Predictions(est, X):
     est : estimator instance
         needs to support call `get_feature_importances`
     """
+    y_pred = est.predict(X)
+    
     fig = matplotlib.pyplot.figure()
     plt1 = fig.add_subplot(1,1,1)
     plt1.hist(y_pred, 100, alpha=0.8, histtype=u'bar')
-    plt1.yscale("log", nonposx='clip')
+    plt1.set_yscale("log", nonposx='clip')
 
     return fig
 
@@ -139,3 +141,87 @@ def plot_CategoryFork_prediction(cf, X):
     plt.legend(loc='upper right')
 
     return fig    
+
+def plot_BinaryOutcomeDist(df, n_many):
+    def xthelper(df):
+        s = df.iloc[:,1]
+        n = np.sum(s.values)
+        l = df.shape[0]
+        return pd.Series([l-n, n, l], index=['neg', 'pos', 'all'])
+    dx = df.copy()
+    dx = dx.groupby([0]).apply(xthelper)
+    dx.sort_values('all', inplace=True)
+    dx = dx.tail(n_many)
+    
+    # Data
+    lables = dx.index.values
+    rights = dx['pos'].values
+    lefts = dx['neg'].values    
+    sums = dx['all'].values
+    
+    max_x = max( np.max(lefts) , np.max(rights) )
+    ratios = np.array(lefts/rights)
+    ratios = [ '%f'%(n)   if np.isfinite(n) else 'NaN' for n in ratios  ]
+    ratiolabels = [ '%s :: %d'%(r,s) for r,s in zip(ratios,sums) ]
+    
+    # Sort by number of sales staff
+    idx = sums.argsort()
+    lables, lefts, rights = [np.take(x, idx) for x in [lables, lefts, rights]]
+    
+    ys = np.arange(lables.size)
+    
+    fig, axes = plt.subplots(figsize=(20, len(lables)/3.), dpi=80, ncols=2, sharey=True)
+    axes[0].barh(ys, lefts, align='center', color='r', alpha=0.2) #, zorder=10)
+    axes[0].set(title='negatives')
+    axes[1].barh(ys, rights, align='center', color='r', alpha=0.2) # zorder=10)
+    axes[1].set(title='positives')
+    
+    axes[0].invert_xaxis()
+    #axes[0].set(yticks=y, yticklabels=states)
+    axes[0].set(yticks=ys, yticklabels='')
+    axes[0].yaxis.tick_right()
+    
+    for ax in axes.flat:
+        ax.margins(0.03)
+        #ax.grid(True)
+    
+    fig.tight_layout()
+    fig.subplots_adjust(wspace=0.09)
+    
+        
+    axes[0].set_xlim([0.9, max_x*1.05])
+    axes[1].set_xlim([0.9, max_x*1.05])
+    
+    axes[0].set_xscale("log", nonposx='clip')
+    axes[1].set_xscale("log", nonposx='clip')
+    axes[0].invert_xaxis()
+    
+    for y_pos,r in zip(ys,ratiolabels):
+        axes[0].text(1, y_pos, r, horizontalalignment='right', verticalalignment='center', fontsize =8, color ='k' )
+    
+    for y_pos,label in zip(ys,lables):
+        axes[1].text(1, y_pos, label, horizontalalignment='left', verticalalignment='center', fontsize =8, color ='k' )
+        
+    plt.show()
+
+
+def plot_BinaryRocAucCurve( y_test, y_proba):
+    from sklearn.metrics import roc_curve, auc
+    fpr_1, tpr_1, _ = roc_curve(y_test, y_proba)
+    roc_auc_1 = auc(fpr_1, tpr_1)
+    
+    fig = matplotlib.pyplot.figure()
+    plt1 = fig.add_subplot(1,1,1)
+    
+    lw = 2
+    plt.plot(fpr_1, tpr_1, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % roc_auc_1)
+    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic example')
+    plt.legend(loc="lower right")
+    return fig
+    
+

@@ -2,51 +2,52 @@
 Created on Oct 20, 2017
 
 @author: marcel.zoll
+
+
+
+
 '''
 
 import sys
-import numpy as np
-import pandas as pd
+import copy
 
 from sklearn.base import RegressorMixin, ClassifierMixin, MetaEstimatorMixin, BaseEstimator
 from sklearn.base import is_classifier
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import ShuffleSplit
 
-class _GrowingTreeEstimator(MetaEstimatorMixin):
-    """ baseclass for growing tree estimators; grows additional trees as long as the score improves
+class _GrowingTreeEstimator(MetaEstimatorMixin, object):
+    """ Base for growing tree estimators; grows additional trees as long as the score improves
     
     Parameters
     ----------
     treeEstimatorClass : class (Estimator)
         An ensamble estimator based on decision-trees
-    
     est_params : dict
         Parameters on the estimator
-        
     ntrees_start : int
         number of trees to initially construct
-        
     ntress_increment : int
         number of trees to grow the estimator with each iteration
-        
     scoring : callable
         Callable object that returns a scalar score; greater is better.   
-        
     min_score_improvement : float
         minimal required difference in score, so that an training with additional trees is considered an improvement (default: 0.)
-        
     nrounds_noimp : int
         number of rounds without an improvement to end search iteration;
         then take the estimator with the last best estimator (default: 2)
-    
     nrounds_stop : int
         number of maximal iterations (thus growing maximal ntrees_increment*nrounds_stop additional trees) until ending search iteration;
         then take the estimator with the last best estimator (default: sys.maxsize (nostop))
-        
     cv_test_frac : float ( in interval (0..1) )
         the fraction (ratio) of the test sample size for the internal cross-validation (default: 0.2) 
-    
     cv_n_splits : int
         number of cross_validation rounds to generate scoring in each iteration round (default: 3):
+        
+    Attributes
+    ----------
+    est : Estimator object
+        the estimator which is trained up
     """
     def __init__(self,
             treeEstimatorClass, 
@@ -85,16 +86,13 @@ class _GrowingTreeEstimator(MetaEstimatorMixin):
         print('call from %s' % (str(self)))
         n_est = self._ntrees_start
         
-        from sklearn.model_selection import cross_val_score
-        from sklearn.model_selection import ShuffleSplit
         cv = ShuffleSplit(n_splits=self._cv_n_splits, test_size=self._cv_test_frac, random_state=0)
         
         meter = cross_val_score(self.est, X, y, scoring=self._score_func, cv=cv).mean()
         
         print("round n_est meter")
         print("%d %d %f" % (0, n_est, meter))
-
-        import copy
+        
         est = copy.deepcopy(self.est)
         
         meter_prev_max = meter
@@ -136,13 +134,14 @@ class _GrowingTreeEstimator(MetaEstimatorMixin):
         return self.est.predict(X)
     def predict_proba(self, X):
         return self.est.predict_proba(X)
-    def transform(self, X):
-        return self.predict(X)
+    #def transform(self, X):
+        #return self.predict(X)
     @property
     def feature_importances_(self):
         return self.est.feature_importances_
 
 
+from sklearn.ensemble import GradientBoostingRegressor
 class GrowingGBRegressor(_GrowingTreeEstimator, RegressorMixin):
     """ A GradientBoostingRegressor that adds more trees as long as the score improves """
     def __init__(self,
@@ -163,7 +162,7 @@ class GrowingGBRegressor(_GrowingTreeEstimator, RegressorMixin):
             warm_start= False):
         score_func = scoring_to_score_func(scoring, 'r2_score')
         
-        from sklearn.ensemble import GradientBoostingRegressor
+        
         _GrowingTreeEstimator.__init__(self, 
             GradientBoostingRegressor,
             ntrees_start = ntrees_start,
@@ -178,6 +177,7 @@ class GrowingGBRegressor(_GrowingTreeEstimator, RegressorMixin):
             warm_start = warm_start)
 
 
+from sklearn.ensemble import GradientBoostingClassifier
 class GrowingGBClassifier(_GrowingTreeEstimator, ClassifierMixin):
     def __init__(self,
             ntrees_start = 100,
@@ -197,7 +197,6 @@ class GrowingGBClassifier(_GrowingTreeEstimator, ClassifierMixin):
             warm_start = False):
         score_func = scoring_to_score_func(scoring, 'log_loss')
         
-        from sklearn.ensemble import GradientBoostingClassifier
         _GrowingTreeEstimator.__init__(self, 
             GradientBoostingClassifier,
             ntrees_start = ntrees_start,
@@ -215,6 +214,56 @@ class GrowingGBClassifier(_GrowingTreeEstimator, ClassifierMixin):
         return self.est.classes_
 
 
+from sklearn.ensemble import GradientBoostingClassifier
+class GrowingGBBinaryProbClassifier(_GrowingTreeEstimator, ClassifierMixin):
+    def __init__(self,
+            ntrees_start = 100,
+            ntress_increment = 10,
+            scoring = None,
+            min_score_improvement = 0.,
+            nrounds_noimp = 2, #number of rounds no improvement in scores is seen
+            nrounds_stop = 20,
+            est_params = {
+                'learning_rate':0.1,
+                'max_depth':3,
+                'random_state':0,
+                'loss':'deviance'            
+            },
+            cv_test_frac = 0.2,
+            cv_n_splits = 2,
+            warm_start = False):
+        score_func = scoring_to_score_func(scoring, 'log_loss')
+        
+        _GrowingTreeEstimator.__init__(self, 
+            GradientBoostingClassifier,
+            ntrees_start = ntrees_start,
+            ntress_increment = ntress_increment,
+            score_func = score_func,
+            min_score_improvement = min_score_improvement,
+            nrounds_noimp = nrounds_noimp,
+            nrounds_stop = nrounds_stop,
+            est_params = est_params,
+            cv_test_frac = cv_test_frac,
+            cv_n_splits = cv_n_splits,
+            warm_start = warm_start)
+    def fit(self, X, y, **fit_params):
+        _GrowingTreeEstimator.fit(self, X, y, **fit_params)
+        return self
+    def predict(self, X):
+        ''' predict only the positive component '''
+        return self.est.predict_proba(X)[:,1]
+    @property
+    def classes_(self):
+        return self.est.classes_
+    
+
+#=====================================
+# Scoring auxilary
+#=====================================
+
+from sklearn.metrics import make_scorer
+from sklearn.utils import column_or_1d
+
 def scoring_to_score_func(scoring, default):
     if callable(scoring):
         return scoring
@@ -222,8 +271,14 @@ def scoring_to_score_func(scoring, default):
         if callable(default):
             return default
         scoring = default
-        
-    from sklearn.metrics import make_scorer
+    
+    if scoring=='binary_roc_auc_score':
+        from sklearn.metrics import roc_auc_score
+        return make_binary_scorer(roc_auc_score, greater_is_better=True, needs_proba=True)
+    if scoring == 'binary_log_loss':
+        from sklearn.metrics import log_loss
+        return make_binary_scorer(log_loss, greater_is_better=False, needs_proba=True)
+     
     if scoring=='accuracy_score':
         from sklearn.metrics import accuracy_score
         return make_scorer(accuracy_score, greater_is_better=True, needs_proba=False)
@@ -248,3 +303,26 @@ def scoring_to_score_func(scoring, default):
         return make_scorer(r2_score, greater_is_better=False, needs_proba=False)
     
     raise Exception('Cannot comprehend scoring')
+
+class binary_scorer(object):
+    ''' auxilary to make_binary_scorer '''
+    def __init__(self, score_fct):
+        self.score_fct = score_fct
+    def __call__(self, est, X, y_true):
+        column_or_1d(y_true)
+        y_pred = est.predict_proba(X)[:,1]
+        return self.score_fct(y_true, y_pred)
+        
+def make_binary_scorer(score_fct, greater_is_better=False, needs_proba=False):
+    ''' auxilary to scoring to score_fct '''
+    if not needs_proba:
+        return make_scorer(score_fct, greater_is_better=greater_is_better, needs_proba=needs_proba)
+    else:
+        return binary_scorer(score_fct)
+
+
+class _binary_scoring_wrap():
+    def __init__(self, multimetric):
+        self.multimetric = multimetric
+    def __call__(self, y_true, y_score):
+        return self.multimetric( y_true, y_score[:,1] )
