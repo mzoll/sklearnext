@@ -24,23 +24,21 @@ def LogLossScore_adapted(y_true, y_pred_proba):
     return score
 
 
-def ClassifierOvertrainCheck(est, X_train, y_train, X_test, y_test):
+def ClassifierOvertrainCheck(y_train, y_train_pred_proba, y_test, y_test_pred_proba):
     """ print out measures for possible overtraining """
-    y_train_pred = est.predict(X_train)    
-    y_test_pred = est.predict(X_test)
     #--- RocAuc
-    score_train = RocAucScore(y_train, y_train_pred)
-    score_test = RocAucScore(y_test, y_test_pred)
+    score_train = RocAucScore(y_train, y_train_pred_proba)
+    score_test = RocAucScore(y_test, y_test_pred_proba)
     print("RocAuc score :: train: %f  test: %f  diff: %e" % (score_train, score_test, score_train-score_test))
     
     #--- RocAuc
-    score_train = LogLossScore(y_train, y_train_pred)
-    score_test = LogLossScore(y_test, y_test_pred)
+    score_train = LogLossScore(y_train, y_train_pred_proba)
+    score_test = LogLossScore(y_test, y_test_pred_proba)
     print("LogLoss :: train: %f  test: %f  diff: %e" % (score_train, score_test, score_train-score_test))
     
     #--- RocAuc
-    score_train = LogLossScore_adapted(y_train, y_train_pred)
-    score_test = LogLossScore_adapted(y_test, y_test_pred)
+    score_train = LogLossScore_adapted(y_train, y_train_pred_proba)
+    score_test = LogLossScore_adapted(y_test, y_test_pred_proba)
     print("Adapted LogLoss :: train: %f  test: %f  diff: %e" % (score_train, score_test, score_train-score_test))
 
 
@@ -54,10 +52,8 @@ def R2Score(y_true, y_pred):
     #print("Adapted R2 score : %f" % (score))
     return score
 
-def RegressorOvertrainCheck(est, X_train, y_train, X_test, y_test):
+def RegressorOvertrainCheck(y_train, y_train_pred, y_test, y_test_pred):
     """ print out measures for possible overtraining """
-    y_train_pred = est.predict(X_train)    
-    y_test_pred = est.predict(X_test)
     #--- RocAuc
     score_train = R2Score(y_train, y_train_pred)
     score_test = R2Score(y_test, y_test_pred)

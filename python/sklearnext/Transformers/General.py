@@ -281,8 +281,7 @@ class CatLabelsTransformer(TransformerMixin, object):
         assert(X.shape[1]==1)
         self.feature_names_ = [ X.columns[0] ]
         
-        
-        levels, counts = np.unique( Xg.iloc[:,0], return_counts=True )
+        levels, counts = np.unique( X.iloc[:,0], return_counts=True )
         idx = np.array(list(reversed(np.argsort(counts))))
         levels, counts, coverage = [ np.take(x, idx ) for x in [levels, counts, counts / np.sum(counts)] ]
         

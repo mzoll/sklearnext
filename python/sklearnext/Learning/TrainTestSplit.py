@@ -9,7 +9,7 @@ def train_test_split(X, y, test_size=.2, random_state=0, stratify=None, checks=F
         #assert( np.all(X.index.isin(y.index)) )
         X.index == y.index
     
-    X_train, X_test, y_train, y_test = tts(X, y, test_size, random_state, stratify)
+    X_train, X_test, y_train, y_test = tts(X, y, test_size, random_state, stratify= stratify)
 
     X_train.sort_index(inplace = True)
     y_train.sort_index(inplace = True) #y_train.reindex(index= X_train.index)
