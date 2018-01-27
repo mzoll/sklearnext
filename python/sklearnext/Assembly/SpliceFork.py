@@ -92,7 +92,7 @@ class SpliceFork(TransformerMixin, object): #_BaseComposition
         return self
     def _transform(self, X):
         ''' transform an input X by applying the grouping, the pre and then the individual pipelines '''
-        Xg = self.cat_trans.fit_transform(X)        
+        Xg = self.cat_trans.transform(X)        
         
         #--- translate labels to group_indexes
         lg_dict = { l:g for g,l in enumerate(self.levels_) }
@@ -104,7 +104,7 @@ class SpliceFork(TransformerMixin, object): #_BaseComposition
         xgroups = Xg.iloc[:,0].apply(xghelper)
         
         #--- compute the pre_pipe result and split up into groups           
-        Xt = self.pre_trans.fit_transform(X)
+        Xt = self.pre_trans.transform(X)
         if not self.take_pre_only:
             if isinstance(Xt, pd.SparseDataFrame):
                 Xt = Xt.to_dense()

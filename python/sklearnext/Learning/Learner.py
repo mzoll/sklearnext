@@ -6,7 +6,7 @@ Created on Dec 8, 2017
 
 import pandas as pd
 
-from sklearn.base import MetaEstimatorMixin
+from sklearn.base import MetaEstimatorMixin, TransformerMixin
 
 class SklearnerWrapper(MetaEstimatorMixin, object):
     """ Wraps around a Learner/Estimator with the interface from sklearn.
@@ -25,13 +25,50 @@ class SklearnerWrapper(MetaEstimatorMixin, object):
     def __init__(self, estimator):
         self.estimator = estimator
     def fit(self, X, y, **fit_params):
-        print("shapes ", X.shape, y.shape)
-        self.estimator.fit(X, y, **fit_params)
+        #print("shapes ", X.shape, y.shape)
+        self.estimator.fit(X.values, y.values, **fit_params)
         return self
     def predict(self, X):
-        return pd.Series( self.estimator.predict(X), index = X.index )
+        return pd.Series( self.estimator.predict(X.values), index = X.index )
     @property
     def feature_importances_(self):
         return self.estimator.feature_importances_
     def score(self, X, y, sample_weight = None):
-        return self.estimator.score(X, y, sample_weight)
+        return self.estimator.score(X.values, y.values, sample_weight)
+    
+    
+class SklearnerTransWrapper(MetaEstimatorMixin, TransformerMixin, object):
+    """ Wraps around a Learner/Estimator with the interface from sklearn.
+    Inputs for X are explicitly an pandas.DataFrame with index
+    Input for y is explicitly an pandas.Series with index
+    Outputs for predict is a single column pandas.DataFrame with column 'name'
+    
+    Parameters
+    ----------
+    estimator : Estimator object
+        an sklearn Estimator
+    name : string
+        an name for the predict output column
+    
+    Attributes
+    ----------
+    estimator : Estimator object
+        an sklearn Estimator
+    """
+    def __init__(self, estimator, name):
+        self.estimator = estimator
+        self.name = name
+    def fit(self, X, y, **fit_params):
+        print("shapes ", X.shape, y.shape)
+        self.estimator.fit(X.values, y.values, **fit_params)
+        return self
+    def transform(self, X):
+        return pd.DataFrame( self.estimator.predict(X.values), columns=[self.name], index = X.index )
+    @property
+    def feature_importances_(self):
+        return self.estimator.feature_importances_
+    def get_feature_names(self):
+        return [self.name]
+    def score(self, X, y, sample_weight = None):
+        return self.estimator.score(X.values, y.values, sample_weight)
+    

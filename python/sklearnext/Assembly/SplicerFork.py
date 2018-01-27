@@ -20,6 +20,7 @@ from sklearn.utils import check_array, safe_mask
 from sklearn.utils.validation import check_memory
 
 from ..Transformers.LabelDummy import LabelDummyTransformer
+from ..base import assert_dfncol
 
 
 class SplitterFork(TransformerMixin, object): #_BaseComposition
@@ -56,6 +57,59 @@ class SplitterFork(TransformerMixin, object): #_BaseComposition
     coverage_ : list of floats 
         relative coverage in each of the groups determined in fit()
     """
+    class TheseLabelsDummyTransformer(object):
+        """ one hot encode categorical column with dummies for these lables 
+        
+        Parameters
+        ----------
+        lables : list of str
+            list of the names of the to onehot-encode lables
+        sparse_output : bool
+            return a sparse DataFrame (true), else dense DataFrame (false) (default: True)
+        """
+        def __init__(self, lables, sparse_output = False):
+            self.classes_ = lables
+            self.sparse_output = sparse_output
+        def className_to_dummyName_(self, cn):
+            return '_'.join([self.invar_, str(cn)])
+        def constructTransdict(self):
+            s_dummy = pd.Series( { e:False for e in self.feature_names_ } )
+            def xthelper(c):
+                sx = s_dummy.copy()
+                sx[self.className_to_dummyName_(c) ] = True
+                return(sx)
+            self.transdict = { c:xthelper(c) for c in self.classes_ }
+            self.transdict[None] = s_dummy
+            #optimize for single row evals
+            self.transdfdict = { k:pd.DataFrame(v).T for k,v in self.transdict.items() }
+               
+        def fit(self, X, y=None, **fit_params):
+            self.invar_ = X.columns[0]
+            
+            self.feature_names_ = [ self.className_to_dummyName_(c) for c in self.classes_ ]
+            self.constructTransdict()
+            
+            return self
+        
+        def transform(self, X):
+            check_is_fitted(self, 'classes_')
+            assert_dfncol(X, 1)
+        
+            if X.shape[0]==1: #optimize for single row evals
+                df = self.transdfdict.get(X[invar_].values[0])            
+                df.index = X.index
+                return df
+            
+            def xthelper(row):
+                v = row[self.invar_]
+                r = self.transdict.get(v)
+                return r
+            Xt = X.apply(xthelper, axis=1)
+            
+            if self.sparse_output:
+                return Xt.to_sparse(fill_value=False)
+            return Xt
+    
     def __init__(self,
                  cat_trans,
                  pre_trans,
@@ -121,41 +175,56 @@ class SplitterFork(TransformerMixin, object): #_BaseComposition
             raise Exception("Unknown level '%s' encountered for variable '%s', and no default enabled" % (v, self.varname))
         xgroups = Xg.iloc[:,0].apply(xghelper).values
         
+        
         print("pre")
         #--- compute the pre_pipe result and split up into groups
         Xt = self.pre_trans.fit_transform(X, y)
-        if not self.take_pre_only:
-            if isinstance(Xt, pd.SparseDataFrame):
-                Xt = Xt.to_dense()
-            Xt = pd.concat([X, Xt], axis=1)
-        if self.propagate_disc_labels:
-            self.level_encoder_ = LabelDummyTransformer(sparse_output=False).fit(Xg)
-            Xgt = self.level_encoder_.transform(Xg)
-            #from sklearn.preprocessing import LabelEncoder
-            #self.level_encoder_ = LabelEncoder().
-            #self.level_encoder_.classes_ = np.array(levels)
-            #Xgt = Xg.apply(self.level_encoder_.transform, axis=1)
-            Xt = pd.concat([Xt, Xgt], axis=1)
-        
-        #print(Xt.columns)
-        
-        Xtgroups = { gk:df for gk,df in Xt.groupby(xgroups) }
-        ygroups = { gk:df for gk,df in y.groupby(xgroups) }
+        if isinstance(Xt, pd.SparseDataFrame):
+            Xt = Xt.to_dense()
+    
         
         print("segment fit")
         #--- create pipes and fit them for every group
-         
-        self.sub_pipes_ = [ copy.deepcopy(self.sub_pipe) for l in self.levels_ ]
+        #fit the easy ones : for all levels with enough coverage the sub_pipe is copied locally (DANGER or so I hope) and trained
+        #print(Xt.columns)
+        gk_idx_groups = y.index.groupby(xgroups)
+        gkd = len(self.lg_dict)-1
+        
+        #self.sub_pipes_ = [ copy.deepcopy(self.sub_pipe) for l in self.levels_ ]
         pls = Parallel(n_jobs=self.n_jobs)(
-            delayed(_fit_one_fittable)(self.sub_pipes_[gk], Xtgroups[gk], ygroups[gk])
-            for gk in Xtgroups.keys())
+            delayed(_fit_one_fittable)(self.sub_pipe_, Xtgroups.loc[idx,:], ygroups.loc[idx]) for gk, idx in gk_idx_groups if gk!=gkd)
         self.sub_pipes_ = pls
         
-        self.coverage_ = np.array([ df.shape[0]/X.shape[0] for gk,df in Xtgroups.items() ])
+        #do the hard one: Add the one hot encoding to the grouped block
+        #then ovesample from rest until min_coverage is reached  
+        
+        gkd_idx = gk_idx_groups[gkd]
+        gkx_idx = y.index[~ y.index.isin(gkd_idx)]
+        
+        oversample_size = int(len(y)*self.min_coverage- len(gkd_idx))
+        
+        gkx_idx_os = gkx_idx( np.random.permutation( [True]*oversample_size + [False]*(len(gkx_idx)-oversample_size) ) )
+        
+        #we know which indexes to take, so now put it all together:
+        Xg_gkd = Xg.loc[gkd_idx]
+        self.level_encoder_ = TheseLabelsDummyTransformer(self.default_levels_, sparse_output=False).fit(Xg)
+        Xgt_gkd = self.level_encoder_.transform(Xgt_gkd)
+        
+        Xt_gkd = Xt.loc[gkd_idx]
+        
+        XtXgt_gkd = pd.concat(Xt_gkd, Xgt_gkd, axis=1) 
+        
+        XtXgt_gkdgkxos = pd.concat(XtXgt_gkd, Xt.loc[gkx_idx_os])
+        
+        y_gkdgkxos = pd.concat(y.loc[gkd_idx], y.loc[gkx_idx_os])
+        
+        #now fit the last pipe
+        self.sub_pipes_.append(_fit_one_fittable(self.sub_pipe_, XtXgt_gkdgkxos, y_gkdgkxos))
+
         return self
     def _transform(self, X):
         ''' transform an input X by applying the grouping, the pre and then the individual pipelines '''
-        Xg = self.cat_trans.transform(X)        
+        Xg = self.cat_trans.fit_transform(X)        
         
         #--- translate labels to group_indexes
         def xghelper(v):
@@ -168,69 +237,33 @@ class SplitterFork(TransformerMixin, object): #_BaseComposition
         xgroups = Xg.iloc[:,0].apply(xghelper)
         
         #--- compute the pre_pipe result and split up into groups           
-        Xt = self.pre_trans.transform(X)
-        if not self.take_pre_only:
-            if isinstance(Xt, pd.SparseDataFrame):
-                Xt = Xt.to_dense()
-            Xt = pd.concat([X, Xt], axis=1)
-        if self.propagate_disc_labels:
-            Xgt = self.level_encoder_.transform(Xg)
-            Xt = pd.concat([Xt, Xgt], axis=1)
+        Xt = self.pre_trans.fit_transform(X)
+        if isinstance(Xt, pd.SparseDataFrame):
+            Xt = Xt.to_dense()
         
-        results = []
-        for gk, Xp in Xt.groupby(xgroups):
-            r = self.sub_pipes_[gk].predict(Xp)
-            results.append( r )
+        gk_idx_groups = y.index.groupby(xgroups)
+        gkd = len(self.lg_dict)-1
+        
+        #self.sub_pipes_ = [ copy.deepcopy(self.sub_pipe) for l in self.levels_ ]
+        results = Parallel(n_jobs=self.n_jobs)(
+            delayed(_predict_one)(self.sub_pipes_[gk], Xtgroups.loc[idx,:], ygroups.loc[idx]) for gk, idx in gk_idx_groups if gk!=gkd)
+        
+        #do the hard one: Add the one hot encoding to the grouped block and predict  
+        gkd_idx = gk_idx_groups[gkd]
+        Xt_gkd = Xt.loc[gkd_idx]
+        Xg_gkd = Xg.loc[gkd_idx]
+        Xgt_gkd = self.level_encoder_.transform(Xg)
+        
+        XtXgt_gkd = pd.concat(XtXgt_gkd, Xt.loc[gkx_idx_os])
+        
+        results.append(self.sub_pipes_[gkd_idx].predict(XtXgt_gkd))
+        
         return pd.concat(results).reindex(index= X.index)
-#    def predict(self, X):
-#        return self._transform(X)
-#    def transform(self, X):
-#        return self._transform(X)
-    #------------
-    def _get_tpPre(self,X):
-        ''' transform an input X by applying the grouping, the pre and then the individual pipelines '''
-        Xg = self.cat_trans.transform(X)        
-        
-        #--- translate labels to group_indexes
-        def xghelper(v):
-            res = self.lg_dict.get(v)
-            if res is not None:
-                return res
-            if v in self.default_levels_:
-                return self.lg_dict.get(self.default_key_)
-            raise Exception("Unknown level '%s' encountered for variable '%s', and no default enabled" % (v, self.varname))
-        xgroups = Xg.iloc[:,0].apply(xghelper)
     
-        #--- compute the pre_pipe result and split up into groups           
-        Xt = self.pre_trans.transform(X)
-        if not self.take_pre_only:
-            if isinstance(Xt, pd.SparseDataFrame):
-                Xt = Xt.to_dense()
-            Xt = pd.concat([X, Xt], axis=1)
-        if self.propagate_disc_labels:
-            Xgt = self.level_encoder_.transform(Xg)
-            Xt = pd.concat([Xt, Xgt], axis=1)
-            
-        return Xt, xgroups
-        
     def predict(self, X):
-        Xt, xgroups = self._get_tpPre(X)
-        
-        results = []
-        for gk, Xp in Xt.groupby(xgroups):
-            r = self.sub_pipes_[gk].predict(Xp)
-            results.append( r )
-        return pd.concat(results).reindex(index= X.index)
-    
+        return self._transform(X)
     def transform(self, X):
-        Xt, xgroups = self._get_tpPre(X)
-        
-        results = []
-        for gk, Xp in Xt.groupby(xgroups):
-            r = self.sub_pipes_[gk].transform(Xp)
-            results.append( r )
-        return pd.concat(results).reindex(index= X.index)
-        
+        return self._transform(X)
     def get_feature_importances_deep(self):
         features = set( fi[0] for p in self.sub_pipes_ for fi in p.get_feature_importances() )
         from collections import defaultdict
@@ -258,3 +291,6 @@ class SplitterFork(TransformerMixin, object): #_BaseComposition
 #auxilary to CategoryFork
 def _fit_one_fittable(fittable, X, y):
     return fittable.fit(X,y)
+
+def _predict_one(est, X, y):
+    return est.predict(X,y)

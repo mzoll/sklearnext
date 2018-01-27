@@ -14,7 +14,7 @@ import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-def plot_FeatureImportances(est):
+def plot_FeatureImportances(est, n_many=sys.maxsize):
     """
     Parameters
     ----------
@@ -23,6 +23,10 @@ def plot_FeatureImportances(est):
     """
     fi_list = sorted(est.get_feature_importances(), key= lambda e: e[1], reverse=True)    
     l,i = zip(*fi_list)
+    
+    if n_many < sys.maxsize:
+        l = l[:n_many]
+        i = i[:n_many]
     
     fig = matplotlib.pyplot.figure(figsize=(20, len(fi_list)/3.), dpi=80)
     
@@ -81,9 +85,9 @@ def plot_CategoryFork_FeatureImportances(cf, coverage_weighted=True, n_many=sys.
         i = [np.array(ii)*cov for ii in i]
     
     if n_many < sys.maxsize:
-        l = l[-n_many:]
-        i = i[-n_many:]
-        cov = cov[-n_many:]
+        l = l[:n_many]
+        i = i[:n_many]
+        cov = cov[:n_many]
        
     # generate some multi-dimensional data & arbitrary labels
     y_pos = np.arange(len(l))
