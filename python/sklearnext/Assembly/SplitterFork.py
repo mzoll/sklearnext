@@ -19,12 +19,14 @@ from sklearn.externals.joblib import Parallel, delayed, Memory
 from sklearn.utils import check_array, safe_mask
 from sklearn.utils.validation import check_memory
 
-from ..Transformers.LabelDummy import LabelDummyTransformer
-
+from sklearnext.transformers import OneHotTransformer
 
 class SplitterFork(TransformerMixin, object): #_BaseComposition
     """ A Pipeline that splices up a subsequent pipeline based on the yield variable of cat_trans, applies preprocessing by
-    pre_trans and the applies sub_pipe individually for each so trained segment
+    pre_trans and the applies sub_pipe individually for each so trained segment.
+    
+    In the end of processing there will be one pipeline  per remaining level fulfilling the requirements on min_coverage and
+    and max_levels, eventually plus an extra pipeline for defaulting levels, which do not fulfill these requirements 
     
     Parameters
     ----------
@@ -89,9 +91,9 @@ class SplitterFork(TransformerMixin, object): #_BaseComposition
         levels, counts, coverage = [ np.take(x, idx ) for x in [levels, counts, counts / np.sum(counts)] ]
         
         #--- decide which levels to take
-        self.levels_ = []
-        self.default_levels_ = []
-        self.coverage_ = []
+        self.levels_ = [] #regular levels with enough coverage one group/subpipe per
+        self.default_levels_ = []  #munched up levels with not enough coverage, all project on the last group/subpipe
+        self.coverage_ = [] #the coverage of each group subpipe, where the last entry is for the default_levels if they exist
         for l,c in zip(levels, coverage):
             if len(self.levels_) < self.max_levels and c >= self.min_coverage:
                 self.levels_.append(l)
@@ -129,7 +131,7 @@ class SplitterFork(TransformerMixin, object): #_BaseComposition
                 Xt = Xt.to_dense()
             Xt = pd.concat([X, Xt], axis=1)
         if self.propagate_disc_labels:
-            self.level_encoder_ = LabelDummyTransformer(sparse_output=False).fit(Xg)
+            self.level_encoder_ = OneHotTransformer(sparse_output=False).fit(Xg)
             Xgt = self.level_encoder_.transform(Xg)
             #from sklearn.preprocessing import LabelEncoder
             #self.level_encoder_ = LabelEncoder().
@@ -229,8 +231,8 @@ class SplitterFork(TransformerMixin, object): #_BaseComposition
         for gk, Xp in Xt.groupby(xgroups):
             r = self.sub_pipes_[gk].transform(Xp)
             results.append( r )
-        return pd.concat(results).reindex(index= X.index)
-        
+        return pd.concat(results).reindex(index= X.index)    
+    
     def get_feature_importances_deep(self):
         features = set( fi[0] for p in self.sub_pipes_ for fi in p.get_feature_importances() )
         from collections import defaultdict
@@ -251,6 +253,30 @@ class SplitterFork(TransformerMixin, object): #_BaseComposition
         ''' wrap this as property for chaining to work correctly  '''
         return self.get_feature_importances()
     
+    def predict_dict(self, d):
+        _d = d.copy()
+        k,v = list(self.cat_trans.transform_dict(_d).items())[0]
+    
+        g = self.lg_dict.get(v)
+        
+        if g is None:
+            if v in self.default_levels_:
+                g = self.lg_dict.get(self.default_key_)
+            else:
+                raise Exception("Unrecognized level: %s" % str(v))
+        
+        _dt = self.pre_trans.transform_dict(d)
+        if not self.take_pre_only:
+            _dt.update(_d)
+        if self.propagate_disc_labels:
+            #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FIXME
+            _g = self.level_encoder_.transform_dict(g)
+            _dt.update(_g)
+        
+        dt = self.sub_pipes_[g].predict_dict(_dt)
+        return dt
+
+
 
 #==================================
 # Auxilaries

@@ -76,7 +76,10 @@ class FeatureUnion(pipeline.FeatureUnion):
             
         Xs = pd.concat(Xs, axis=1)
         return Xs
-    
+    def transform_dict(self, d):
+        result_dicts = [trans.transform_dict(d.copy()) for name, trans, weight in self._iter()]
+        return { k:v for _d in result_dicts for k,v in _d.items() }
+
 
 #=================
 # Pipeline
@@ -90,7 +93,16 @@ class Pipeline(pipeline.Pipeline):
         imps = self.steps[-1][1].feature_importances_
         feats = self.steps[-2][1].get_feature_names()
         return list(zip(feats, imps))
-    
+    def predict_dict(self, d):
+        dt = d
+        for n,t in self.steps[:-1]:
+            dt = t.transform_dict(dt)
+        if self._final_estimator is not None: #self._final_estimator
+            #feats = self.steps[-2][1].get_feature_names()
+            #valvec = np.array([ dt.pop(f) for f in feats ])
+            #dt = self._final_estimator.predict_dict(valvec)
+            dt = self._final_estimator.predict_dict(dt)
+        return dt
 
 class TransformerPipe(TransformerMixin, object):
     """ a pipeline only consistent of transformers; provides convenience when transforming
@@ -169,5 +181,10 @@ class TransformerPipe(TransformerMixin, object):
         return Xt
     def fit_transform(self, X, y= None, **fit_params):
         return self._fit_transform(X)
+    def transform_dict(self, d):
+        dt = d
+        for name, transform in self.steps:
+            dt = transform.transform_dict(dt)
+        return dt
     def get_feature_names(self):
         return self.steps[-1][-1].get_feature_names()

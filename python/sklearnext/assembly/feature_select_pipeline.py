@@ -4,7 +4,6 @@ Created on Dec 8, 2017
 @author: marcel.zoll
 '''
 
-
 import sys, copy
 import itertools
 import numpy as np
@@ -17,7 +16,7 @@ from sklearn import clone
 from sklearn.utils import check_array, safe_mask
 from sklearn.utils.validation import check_memory
 
-from .Pipeline import FeatureUnion
+from sklearnext.assembly.pipeline import FeatureUnion
 
 
 class FeatureSelectPipeline(_BaseComposition, object):

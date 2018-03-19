@@ -2,7 +2,6 @@
 simplistic example showing how to use the modules contained in sklearnext
 '''
 
-
 import sys, os, pathlib
 sys.path.insert(0, str(pathlib.Path(os.getcwd()).parents[1] / 'python'))
 
@@ -75,18 +74,18 @@ print(X_train.shape, y_train.shape, X_test.shape, y_test.shape)
 # PIPELINE ASSEMBLY
 #======================
 
-from sklearnext.Assembly import *
-from sklearnext.Sklearning.GBDTreeLearner import *
-from sklearnext.Sklearning.OneProbClassifier import *
-from sklearnext.Learning.Learner import *
-from sklearnext.Transformers.General import *
+from sklearnext.assembly import *
+from sklearnext.sklearning.gbdtree_learner import *
+from sklearnext.sklearning.oneprob_classifier import *
+from sklearnext.learning.learner import *
+from sklearnext.transformers import *
 
 #assemble the pipeline by bits an pieces
 
 #OneHot/Label encoding for feature 'Label'
 tf0 = TransformerPipe([
         ('pagehistExtr', ColumnsSelect(['Label'])),
-        ('labelEnc', LabelDummyTransformer())
+        ('labelEnc', OneHotTransformer())
     ])
 
 #Extraction of Hour and Day-of-Month fromfeature  'Time'
@@ -117,7 +116,7 @@ skl_c0 = GrowingGBClassifier(ntrees_start = 100,
             cv_n_splits = 3)
                       
 #as we are interested in the probabilities rather than the absolute binary classification use this shim
-skl_cc0 = OneProbClassifierWrapper(c0, predictClass=1)
+skl_cc0 = OneProbClassifierWrapper(skl_c0, predictClass=1)
 
 # as OneProbClassifier (and GrowingGBClassifier) are using the sklearn interface, make them pandas compatible
 cc0 = SklearnerWrapper(skl_cc0)
@@ -144,9 +143,13 @@ main_pipe = cf
 #--- train the pipeline
 main_pipe.fit(X_train, y_train)
 
+p_train = main_pipe.predict(X_train)
+p_test = main_pipe.predict(X_test)
+
 #--- verify the model
-from sklearnext.Metric import *
-ClassifierOvertrainCheck(main_pipe, X_train, y_train, X_test, y_test)
+from sklearnext.metric import *
+ClassifierOvertrainCheck(y_train, p_train, y_test, p_test)
+
 
 #--- have a look at the most important features for each pipeline
 fi_deep = cf.get_feature_importances_deep()
@@ -156,7 +159,7 @@ fi = cf.get_feature_importances()
 print(fi)
 
 #--- plot teh feature importances
-from sklearnext.Visualisation import *
+from sklearnext.visualization.viz import *
 plot_FeatureImportances(main_pipe).show()
 plot_CategoryFork_FeatureImportances(main_pipe, coverage_weighted=True).show()
 plot_CategoryFork_FeatureImportances(main_pipe, coverage_weighted=False).show()

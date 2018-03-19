@@ -22,6 +22,8 @@ class ColumnsAll(TransformerMixin, object):
         return self
     def transform(self, X):
         return X
+    def transform_dict(self, d):
+        return d
     def get_feature_names(self):
         return self.feature_names
 
@@ -43,5 +45,14 @@ class ColumnsSelect(TransformerMixin, object):
         return self
     def transform(self, X):
         return X[self.feature_names]
+    def transform_dict(self, d):
+#     del_keys= []
+#     for k in d.keys():
+#         if k not in self.feature_names:
+#             del_keys.append(k)
+#     for k in del_keys
+#         d.pop(k)
+        dt = { k:v for k,v in d.items() if k in self.feature_names } #a little bit faster
+        return dt
     def get_feature_names(self):
         return self.feature_names

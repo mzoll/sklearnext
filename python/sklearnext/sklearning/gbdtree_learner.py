@@ -2,10 +2,6 @@
 Created on Oct 20, 2017
 
 @author: marcel.zoll
-
-
-
-
 '''
 
 import sys
@@ -179,6 +175,7 @@ class GrowingGBRegressor(_GrowingTreeEstimator, RegressorMixin):
 
 from sklearn.ensemble import GradientBoostingClassifier
 class GrowingGBClassifier(_GrowingTreeEstimator, ClassifierMixin):
+    """ A GradientBoostingClassifier that adds more trees as long as the score improves """
     def __init__(self,
             ntrees_start = 100,
             ntress_increment = 10,
@@ -216,6 +213,7 @@ class GrowingGBClassifier(_GrowingTreeEstimator, ClassifierMixin):
 
 from sklearn.ensemble import GradientBoostingClassifier
 class GrowingGBBinaryProbClassifier(_GrowingTreeEstimator, ClassifierMixin):
+    """ A GradientBoostingRegressor for binary classification tasks that adds more trees as long as the score improves """
     def __init__(self,
             ntrees_start = 100,
             ntress_increment = 10,

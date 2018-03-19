@@ -4,13 +4,12 @@ Created on Nov 20, 2017
 @author: marcel.zoll
 '''
 
-import sys, os
+import sys
 import pandas as pd
 import numpy as np
 
-import numpy as np
 import matplotlib
-import matplotlib.mlab as mlab
+#import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
@@ -234,22 +233,3 @@ def plot_BinaryOutcomeDist(X, y, varname, n_many=sys.maxsize):
         
     return fig
 
-
-def plot_BinaryRocAucCurve( y, y_proba):
-    from sklearn.metrics import roc_curve, auc
-    fpr_1, tpr_1, _ = roc_curve(y, y_proba)
-    roc_auc_1 = auc(fpr_1, tpr_1)
-    
-    fig = matplotlib.pyplot.figure()
-    plt1 = fig.add_subplot(1,1,1)
-    
-    lw = 2
-    plt.plot(fpr_1, tpr_1, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % roc_auc_1)
-    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver operating characteristic')
-    plt.legend(loc="lower right")
-    return fig

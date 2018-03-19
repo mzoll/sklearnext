@@ -2,9 +2,10 @@
 Created on Nov 7, 2017
 
 @author: marcel.zoll
+
+(Date)Time Transformers
 '''
 
-import sys
 import pandas as pd
 import numpy as np
 import datetime as dt
@@ -12,19 +13,21 @@ import datetime as dt
 from ..base import assert_dfncol
 
 from sklearn.base import TransformerMixin 
-from sklearn.utils import column_or_1d
 from sklearn.utils.validation import check_is_fitted
 
 class HourWeekdayDayMonthYearTransformer(TransformerMixin):
-    """ transform a single column of datetimeobjects into its components : 
+    """ transform a single column of datetime objects into their components.
+    
+    Components : 
     hour(float), weekday(uint), day(uint), month(uint), year(uint)
     """ 
     def __init__(self):
-        import datetime as dt
+        pass
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
-        self.varname = X.columns[0]
-        self.feature_names_ = [self.varname+'_'+suffix for suffix in ['hour','weekday','day','month','year']]
+        self.incols = X.columns
+        self.varname = self.incols[0]
+        self.feature_names_ = [self.incols[0]+'_'+suffix for suffix in ['hour','weekday','day','month','year']]
         return self
     def transform(self, X):
         def iterhelper(t):
@@ -36,12 +39,22 @@ class HourWeekdayDayMonthYearTransformer(TransformerMixin):
         Xt[self.varname+'_month'] = Xt[self.varname+'_month'].astype('uint8')
         Xt[self.varname+'_year'] = Xt[self.varname+'_year'].astype('uint8')
         return Xt
+    def transform_dict(self, d):
+        t = d.pop(self.varname)
+        d[self.varname+'_hour'] = int(t.hour) + t.minute/60.
+        d[self.varname+'_weekday'] = int(t.weekday())
+        d[self.varname+'_day'] = int(t.day)
+        d[self.varname+'_month'] = int(t.month)
+        d[self.varname+'_year'] = int(t.year)
+        return d
+        
     def get_feature_names(self):
         return self.feature_names_
 
 
 class DeltaSecTransformer(TransformerMixin, object):
     """ calculate the difference in seconds between two input columns, which need be of format datetime
+    
     Parameters
     ----------
     fast_path : bool 
@@ -54,7 +67,6 @@ class DeltaSecTransformer(TransformerMixin, object):
     def __init__(self, fast_path=False, fill_na=(np.nan, np.nan)):
         self.fast_path = fast_path
         self.fill_na = fill_na
-        import datetime as dt
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 2)
         self.incolumns = X.columns
@@ -86,6 +98,10 @@ class DeltaSecTransformer(TransformerMixin, object):
                 return (t2v-t1v).total_seconds()
             Xt = X.apply(xthelper, axis=1)
             return pd.DataFrame(Xt, columns= self.feature_names_)
-                
+    def transform_dict(self, d):
+        t1 = d.pop(self.incolumns[0])
+        t2 = d.pop(self.incolumns[1])
+        d[self.feature_names_[0]] = (t2 - t1).total_seconds()
+        return d            
     def get_feature_names(self):
         return self.feature_names_

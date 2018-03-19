@@ -5,6 +5,7 @@ Created on Dec 8, 2017
 '''
 
 import pandas as pd
+import numpy as np
 
 from sklearn.base import MetaEstimatorMixin, TransformerMixin
 
@@ -26,6 +27,7 @@ class SklearnerWrapper(MetaEstimatorMixin, object):
         self.estimator = estimator
     def fit(self, X, y, **fit_params):
         #print("shapes ", X.shape, y.shape)
+        self.incols = X.columns
         self.estimator.fit(X.values, y.values, **fit_params)
         return self
     def predict(self, X):
@@ -35,6 +37,9 @@ class SklearnerWrapper(MetaEstimatorMixin, object):
         return self.estimator.feature_importances_
     def score(self, X, y, sample_weight = None):
         return self.estimator.score(X.values, y.values, sample_weight)
+    def predict_dict(self, d):
+        v_array = np.array([ np.array( [d[key] for key in self.incols] ) ])
+        return self.estimator.predict(v_array)
     
     
 class SklearnerTransWrapper(MetaEstimatorMixin, TransformerMixin, object):
@@ -59,7 +64,8 @@ class SklearnerTransWrapper(MetaEstimatorMixin, TransformerMixin, object):
         self.estimator = estimator
         self.name = name
     def fit(self, X, y, **fit_params):
-        print("shapes ", X.shape, y.shape)
+        #print("shapes ", X.shape, y.shape)
+        self.incols = X.columns        
         self.estimator.fit(X.values, y.values, **fit_params)
         return self
     def transform(self, X):
@@ -71,4 +77,6 @@ class SklearnerTransWrapper(MetaEstimatorMixin, TransformerMixin, object):
         return [self.name]
     def score(self, X, y, sample_weight = None):
         return self.estimator.score(X.values, y.values, sample_weight)
-    
+    def transform_dict(self, d):
+        v_array = np.array([ np.array([d[key] for key in self.incols]) ])
+        return { self.name: self.estimator.predict(v_array) }
