@@ -22,20 +22,21 @@ class OneHotTransformer(TransformerMixin, object):
     Parameters
     ----------
     classes : list or None
-        objects which form the set of valid labels; lables not in this set will be mapped to the default_column;
-        if this parameter is None the set of labels will be inferred 
+        objects which form the set of valid labels; lables not in this set will be mapped to the default_name;
+        if this parameter is None the set of labels will be inferred
     default_name : str
-        a name for the default level that might or might not be represented by a column
+        a name for the default level.
         if the default_name is present in classes, by specification or inference, defaulting labels will be written to this same label
         (default: 'DEFAULT') 
     default_dummy : bool
-        write a column with superficious dummies, when the label is not contained in any of the classes_ (default: False)
+        force a column with superficious dummies, for defaulting labels (default: False)
     sparse_output : bool
-        return a sparse DataFrame (true), else dense DataFrame (false) (default: True)
+        return a sparse DataFrame (True), else dense DataFrame (False) (default: True)
     
-    
-    Attrributes
+    Attributes
     -----------
+    categories_ : list
+        original categories excluding default_level
     classes_ : list
         classes in the output
     
@@ -68,39 +69,48 @@ class OneHotTransformer(TransformerMixin, object):
             default_name = 'DEFAULT',
             default_dummy = False,
             sparse_output = True):
-        self.classes_ = classes
+        self.categories_ = classes
         self.default_name = default_name
         self.default_dummy = default_dummy
         self.sparse_output = sparse_output
         #---
-        if self.classes_ is not None and self.default_dummy:
-            if self.default_name not in self.classes_:
-                self.classes_ = self.classes_ + [self.default_name]
+        self._fit_categories = classes is None
+        #--- prep
+        if self.categories_ is not None:
+            if self.default_name in self.categories_:
+                self.default_dummy = True
+                self.categories_.remove(self.default_name)
+            if self.default_dummy:
+                self.classes_ = self.categories_ + [self.default_name]
+            else:
+                self.classes_ = self.categories_
+                
     def _className_to_dummyName(self, cn):
         return '_'.join([self.incols[0], str(cn)])    
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
         self.incols = X.columns
         
-        if self.classes_ is None: 
-            self.classes_ = X.iloc[:,0].unique()
-            if self.default_dummy and self.default_name in self.classes_:
-                self.classes_ = self.classes_ + [self.default_name]
+        if self._fit_categories: 
+            self.categories_ = list(X.iloc[:,0].unique())
+            if self.default_name in self.categories_:
+                self.default_dummy = True
+                self.categories_.remove(self.default_name)
+            if self.default_dummy:
+                self.classes_ = self.categories_ + [self.default_name]
+            else:
+                self.classes_ = self.categories_
             
         self.feature_names_ = [ self._className_to_dummyName(c) for c in self.classes_ ]
-        #-----------------
+        
+        #--- create a translation dictionary holding the punch-card for all classes_
         s_dummy = pd.Series( { e:False for e in self.feature_names_ } )
-        def xthelper(c):
+        def cthelper(c):
             sx = s_dummy.copy()
             sx[self._className_to_dummyName(c) ] = True
             return(sx)
-        self.transdict = { c:xthelper(c) for c in self.classes_ }
-        if self.default_dummy:
-            sx = s_dummy.copy()
-            sx[self._className_to_dummyName(self.default_name) ] = True
-            self.transdict[self.default_name] = sx
-        else:
-            self.transdict[None] = s_dummy #push in a default non key
+        self.transdict = { c:cthelper(c) for c in self.classes_ }
+        self.transdict[None] = s_dummy #push in a default non key
         #optimize for single row evals
         self.transdfdict = { k:pd.DataFrame(v).T for k,v in self.transdict.items() }
         return self
@@ -108,16 +118,10 @@ class OneHotTransformer(TransformerMixin, object):
     def transform(self, X):
         check_is_fitted(self, 'classes_')
         assert_dfncol(X, 1)
-        invar_ = self.incols[0]
+        _invar = self.incols[0]
         
-        """
-        classes = np.unique(X[invar_].values)
-        if len(np.intersect1d(classes, self.classes_)) < len(classes):
-            diff = np.setdiff1d(classes, self.classes_)
-            raise ValueError("y contains new labels: %s" % str(diff))
-        """
         if X.shape[0]==1: #optimize for single row evals
-            df = self.transdfdict.get(X[invar_].values[0])            
+            df = self.transdfdict.get(X[_invar].values[0])            
             if df is None:
                 if self.default_dummy:
                     df = self.transdfdict[self.default_name]
@@ -127,15 +131,16 @@ class OneHotTransformer(TransformerMixin, object):
             return df
         
         def xthelper(row):
-            v = row[invar_]
+            v = row[_invar]
             r = self.transdict.get(v)
-            if r is not None:
-                return r    
-            if self.default_dummy:
-                return self.transdict[self.default_name]
-            return self.transdict[None]
+            if r is None:
+                r = self.transdict.get(self.default_name)
+            if r is None:
+                r = self.transdict[None]
+            return r
         Xt = X.apply(xthelper, axis=1)
         
+        #--- if sparse is requested
         if self.sparse_output:
             return Xt.to_sparse(fill_value=False)
         return Xt
@@ -143,10 +148,9 @@ class OneHotTransformer(TransformerMixin, object):
         v = d.pop(self.incols[0])
         s = self.transdict.get(v)
         if s is None:
-            if self.default_dummy:
-                s = self.transdict[self.default_name]
-            else:
-                s = self.transdict[None]
+            s = self.transdict.get(self.default_name)
+        if s is None:
+            s = self.transdict[None]
         d.update( dict(s.items()) )
         return d
     def get_feature_names(self):
@@ -198,17 +202,17 @@ class ForceCategoryTransformer(TransformerMixin, object):
         self.ordered = ordered
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
+        self.incols = X.columns
         self.feature_names_ = list(X.columns)
+        if self.classes_ is None:
+            x = X.iloc[:,0] = x = X.iloc[:,0].astype('category')
+            self.classes_ = x.cat.categories.values
         return self
     def transform(self, X):
         assert_dfncol(X, 1)
         x = X.iloc[:,0]
-        if self.classes_ is None:
-            x = x.astype('category')
-            self.classes_ = x.cat.categories.values
-        else:
-            cat_type = CategoricalDtype(categories=self.classes_, ordered=self.ordered)
-            x = x.astype(cat_type)
+        cat_type = CategoricalDtype(categories=self.classes_, ordered=self.ordered)
+        x = x.astype(cat_type)
         if self.default_level is not None:
             if self.default_level not in x.cat.categories:
                 x = x.cat.add_categories([self.default_level])
@@ -216,6 +220,11 @@ class ForceCategoryTransformer(TransformerMixin, object):
         Xt = pd.DataFrame(x)
         Xt.columns = X.columns
         return Xt
+    def transform_dict(self, d):
+        v = d.pop(self.feature_names_[0])
+        if v not in self.classes_:
+            v = self.default_level
+        return {self.feature_names_[0]: v}        
     def get_feature_names(self):
         return self.feature_names_
 

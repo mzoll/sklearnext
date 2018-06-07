@@ -15,7 +15,14 @@ from sklearn.utils.validation import check_is_fitted
 
 #======================================
 class SparseBinarizer(TransformerMixin, object):
-    """ take an DataFrame input and just set all non-zero/non-null entries to True, everything else False """
+    """ take an DataFrame input and just set all non-zero/non-null entries to True, everything else False
+    
+    Examples
+    --------
+    df = pandas.DataFrame({'A':[0,1], 'B':['a',None]})
+    SparseBinarizer().fit_transform(df) 
+    >>> pandas.SparseDataFrame({'A':[False,True], 'B':[True,False]})
+    """
     def __init__(self):
         pass
     def fit(self, X, y= None, **fit_params):
@@ -38,7 +45,14 @@ class SparseBinarizer(TransformerMixin, object):
 
 #=======================================
 class ObjectLengthTransformer(TransformerMixin, object):
-    """ take a single column input and simply state the lenth of the therein contain objects """
+    """ take a single column input and simply state the lenth of the therein contain objects
+    
+    Examples
+    --------
+    df = pandas.DataFrame({'A':[[1,2,3],'ab']})
+    ObjectLengthTransformer().fit_transform(df) 
+    >>> pandas.DataFrame({'A_length':[3,2]]})
+    """
     def __init__(self):
         pass
     def fit(self, X, y= None, **fit_params):

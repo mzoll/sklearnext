@@ -18,3 +18,4 @@ def assert_dfncol(X, ncolumns):
     '''
     assert( isinstance(X, pandas.DataFrame) )
     assert( X.shape[1] == ncolumns )
+    

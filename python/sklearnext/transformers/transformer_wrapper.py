@@ -42,10 +42,10 @@ class SKLTransformerWrapper(TransformerMixin):
         assert_dfncol(X, 1)
         Xtnp = self.skltransformer.transform(X.values)
         
-        Xt = pd.DataFrame( data=Xtnp, columns = self.feature_names)
+        Xt = pd.DataFrame( data=Xtnp, columns = self.feature_names, index=X.index)
         return Xt
     def get_feature_names(self):
-        return self.feature_names_
+        return self.feature_names
     def transform_dict(self, d):
         x = d.pop(self.incols[0])
         xt = self.skltransformer.transform(np.array(x))

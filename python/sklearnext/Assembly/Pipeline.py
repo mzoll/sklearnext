@@ -170,7 +170,7 @@ class TransformerPipe(TransformerMixin, object):
         
         return Xt
            
-    def fit(self, X, y, **fit_params):
+    def fit(self, X, y= None, **fit_params):
         self._fit_transform(X, y, **fit_params)
         return self
     def transform(self, X):

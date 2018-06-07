@@ -77,7 +77,7 @@ print(X_train.shape, y_train.shape, X_test.shape, y_test.shape)
 from sklearnext.assembly import *
 from sklearnext.sklearning.gbdtree_learner import *
 from sklearnext.sklearning.oneprob_classifier import *
-from sklearnext.learning.learner import *
+from sklearnext.learning.wrapper import *
 from sklearnext.transformers import *
 
 #assemble the pipeline by bits an pieces

@@ -27,7 +27,7 @@ def plot_BinaryRocCurve( y, y_proba):
     plt.plot(fpr_1, tpr_1, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % roc_auc_1)
     plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
     plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
+    plt.ylim([0.0, 1.0])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('Binary Receiver operating characteristic')
@@ -47,8 +47,8 @@ def plot_BinaryPrCurve(y, y_proba):
     
     plt.xlabel('Recall')
     plt.ylabel('Precision')
-    plt.ylim([0.0, 1.05])
+    plt.ylim([0.0, 1.0])
     plt.xlim([0.0, 1.0])
     plt.title('Binary Precision-Recall curve: AP={0:0.2f} PRC_AUC={1:0.2f}'.format(average_precision, prc_auc))
-    plt.hlines(1, 0., 1.)
+    #plt.hlines(1, 0., 1.)
     return fig

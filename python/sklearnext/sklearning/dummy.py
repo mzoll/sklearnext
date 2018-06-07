@@ -15,7 +15,6 @@ class DummyClassifier(BaseEstimator, object):
     ----------
     classes : list of obj
         the class labels that are to be rnadomly sampled sampled
-    
     """
     def __init__(self, classes):
         self.classes_ = classes
@@ -47,3 +46,4 @@ class DummyRegressor(BaseEstimator, object):
         return self
     def predict(self, X):
         return np.linspace(self.min_, self.max_, len(X))
+    
