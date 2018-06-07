@@ -13,7 +13,7 @@ import logging
 from numpy.polynomial.tests.test_classes import classes
 logger = logging.getLogger('seqvec')
 
-from sklearnext.base import assert_dfncol
+from sklearnext.base import assert_dfncol, assert_isfitted
 
 from sklearn.base import TransformerMixin 
 from sklearn.utils.validation import check_is_fitted
@@ -121,6 +121,7 @@ class SequenceVectorEncoder(TransformerMixin, object):
             self._trans_enum_dict= {k:i for i,k in enumerate(self.classes_)}
         return self
     def transform(self, X):
+        assert_isfitted(self)
         assert_dfncol(X, 1)
         #transform to aligned multicolumn
         if self.prioretize_head:
@@ -249,6 +250,7 @@ class SequenceVectorEncoderNEXT(TransformerMixin, object):
         logger.info("fit done")
         return self
     def transform(self, X):
+        assert_isfitted(self)
         assert_dfncol(X, 1)
         
         def _pad_priohead(vec):
@@ -400,6 +402,7 @@ class SequenceVectorCheckboxes(TransformerMixin, object):
         logger.info("fit done")
         return self
     def transform(self, X):
+        assert_isfitted(self)
         assert_dfncol(X, 1)
         def xthelper(vec):
             cb = copy.copy(self._dummy_checkbox)
@@ -460,6 +463,7 @@ class SequenceVectorElement(TransformerMixin, object):
         self.feature_names_ = [self._incols[0]+'_'+str(self.nth)]
         return self
     def transform(self, X):
+        assert_isfitted(self)
         assert_dfncol(X, 1)        
         def xt_helper(val):
             if isinstance(val, list):
@@ -519,6 +523,7 @@ class SequenceVectorElementRemove(TransformerMixin, object):
         self.feature_names_ = [self._incols[0]+'_mod']
         return self
     def transform(self, X):
+        assert_isfitted(self)
         assert_dfncol(X, 1)        
         
         if self.at_front:
