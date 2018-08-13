@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='sklearnext',
-      version='1.3',
+      version='0.1.3',
       description='pandas compatibility and pipelining extensions to scikit-learn',
       url='http://github.com/mzoll/sklearnext',
       author='Marcel Zoll',
