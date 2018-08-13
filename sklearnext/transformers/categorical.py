@@ -205,7 +205,7 @@ class ForceCategoryTransformer(TransformerMixin, object):
         self.incols = X.columns
         self.feature_names_ = list(X.columns)
         if self.classes_ is None:
-            x = X.iloc[:,0] = x = X.iloc[:,0].astype('category')
+            x = X.iloc[:,0].astype('category')
             self.classes_ = x.cat.categories.values
         return self
     def transform(self, X):

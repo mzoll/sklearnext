@@ -26,7 +26,7 @@ class DeltaSecTransformer(TransformerMixin, object):
         calculate the value by a faster way. This requires both columns to have only
         valid (non-null) input (default: False).
     fill_na : tuple of floats (shape=2)
-        fill in these default values in, if left side column respective the right side column value is missing.
+        fill in these default values, if left side column respective the right side column value is missing.
         If both are missing the left side default value takes presidence (default: (na, na))
         
     Example

@@ -104,6 +104,7 @@ class Pipeline(pipeline.Pipeline):
             dt = self._final_estimator.predict_dict(dt)
         return dt
 
+
 class TransformerPipe(TransformerMixin, object):
     """ a pipeline only consistent of transformers; provides convenience when transforming
     by a sequential chain of Transformers
@@ -171,8 +172,46 @@ class TransformerPipe(TransformerMixin, object):
         return Xt
            
     def fit(self, X, y= None, **fit_params):
-        self._fit_transform(X, y, **fit_params)
+        """ fit and transform X by transforming it by every step in sequence """
+        # shallow copy of steps - this should really be steps_
+        self.steps = list(self.steps)
+        self._validate_steps()
+        # Setup the memory
+        memory = check_memory(self.memory)
+
+        fit_transform_one_cached = memory.cache(_fit_transform_one)
+        fit_one_cached = memory.cache(_fit_one_transformer)
+
+        fit_params_steps = dict((name, {}) for name, step in self.steps
+                                if step is not None)
+        for pname, pval in six.iteritems(fit_params):
+            step, param = pname.split('__', 1)
+            fit_params_steps[step][param] = pval
+        Xt = X
+        for step_idx, (name, transformer) in enumerate(self.steps[:-1]):
+            if transformer is None:
+                pass
+            else:
+                if hasattr(memory, 'cachedir') and memory.cachedir is None:
+                    # we do not clone when caching is disabled to preserve
+                    # backward compatibility
+                    cloned_transformer = transformer
+                else:
+                    cloned_transformer = clone(transformer)
+                # Fit or load from cache the current transfomer
+                Xt, fitted_transformer = fit_transform_one_cached(
+                    cloned_transformer, None, Xt, y,
+                    **fit_params_steps[name])
+                
+                # Replace the transformer of the step with the fitted
+                # transformer. This is necessary when loading the transformer
+                # from the cache.
+                self.steps[step_idx] = (name, fitted_transformer)
+        
+        self.steps[-1][1].fit(Xt, y, **fit_params)
+            
         return self
+        
     def transform(self, X):
         Xt = X
         for name, transform in self.steps:
@@ -180,7 +219,41 @@ class TransformerPipe(TransformerMixin, object):
                 Xt = transform.transform(Xt)
         return Xt
     def fit_transform(self, X, y= None, **fit_params):
-        return self._fit_transform(X)
+        """ fit and transform X by transforming it by every step in sequence """
+        # shallow copy of steps - this should really be steps_
+        self.steps = list(self.steps)
+        self._validate_steps()
+        # Setup the memory
+        memory = check_memory(self.memory)
+
+        fit_transform_one_cached = memory.cache(_fit_transform_one)
+
+        fit_params_steps = dict((name, {}) for name, step in self.steps
+                                if step is not None)
+        for pname, pval in six.iteritems(fit_params):
+            step, param = pname.split('__', 1)
+            fit_params_steps[step][param] = pval
+        Xt = X
+        for step_idx, (name, transformer) in enumerate(self.steps):
+            if transformer is None:
+                pass
+            else:
+                if hasattr(memory, 'cachedir') and memory.cachedir is None:
+                    # we do not clone when caching is disabled to preserve
+                    # backward compatibility
+                    cloned_transformer = transformer
+                else:
+                    cloned_transformer = clone(transformer)
+                # Fit or load from cache the current transfomer
+                Xt, fitted_transformer = fit_transform_one_cached(
+                    cloned_transformer, None, Xt, y,
+                    **fit_params_steps[name])
+                # Replace the transformer of the step with the fitted
+                # transformer. This is necessary when loading the transformer
+                # from the cache.
+                self.steps[step_idx] = (name, fitted_transformer)
+        
+        return Xt
     def transform_dict(self, d):
         dt = d
         for name, transform in self.steps:

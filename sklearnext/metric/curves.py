@@ -16,13 +16,14 @@ import matplotlib.patches as mpatches
 from sklearn.metrics import precision_recall_curve, roc_curve, auc
 from sklearn.metrics import average_precision_score
 
+from sklearn.metrics import roc_auc_score
 
 def plot_BinaryRocCurve( y, y_proba):
     fpr_1, tpr_1, _ = roc_curve(y, y_proba)
     roc_auc_1 = auc(fpr_1, tpr_1)
     
     fig = matplotlib.pyplot.figure()
-    plt1 = fig.add_subplot(1,1,1)
+    ax1 = fig.add_subplot(1,1,1)
     lw = 2
     plt.plot(fpr_1, tpr_1, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % roc_auc_1)
     plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
@@ -30,7 +31,7 @@ def plot_BinaryRocCurve( y, y_proba):
     plt.ylim([0.0, 1.0])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('Binary Receiver operating characteristic')
+    plt.title('Receiver operating characteristic: ROC_AUC: {:0.3f}'.format(roc_auc_score(y, y_proba)))
     #plt.legend(loc="lower right")
     return fig
 
@@ -41,7 +42,7 @@ def plot_BinaryPrCurve(y, y_proba):
     prc_auc = auc(precision, recall, 1)
     
     fig = matplotlib.pyplot.figure()
-    plt1 = fig.add_subplot(1,1,1)
+    ax1 = fig.add_subplot(1,1,1)
     plt.step(recall, precision, color='b', alpha=0.2, where='post')
     plt.fill_between(recall, precision, step='post', alpha=0.2, color='b')
     

@@ -10,4 +10,4 @@ from .selectors import ColumnsSelect, ColumnsAll
 from .pipeline import Pipeline, FeatureUnion, TransformerPipe
 from .feature_select_pipeline import FeatureSelectPipeline
 from .category_fork import CategoryFork
-from .splitterFork import SplitterFork
+from .splitter_fork import SplitterFork

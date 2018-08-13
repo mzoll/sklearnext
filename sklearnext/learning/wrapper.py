@@ -13,6 +13,7 @@ class SklearnerWrapper(MetaEstimatorMixin, object):
     """ Wraps around a Learner/Estimator with the interface from sklearn.
     Inputs for X are explicitly an pandas.DataFrame with index
     Input for y is explicitly an pandas.Series with index
+    
     Parameters
     ----------
     estimator : Estimator object
@@ -39,8 +40,8 @@ class SklearnerWrapper(MetaEstimatorMixin, object):
         return self.estimator.score(X.values, y.values, sample_weight)
     def predict_dict(self, d):
         v_array = np.array([ np.array( [d[key] for key in self.incols] ) ])
-        return self.estimator.predict(v_array)
-    
+        r = self.estimator.predict(v_array)
+        return r.reshape( (1) ) 
     
 class SklearnerTransWrapper(MetaEstimatorMixin, TransformerMixin, object):
     """ Wraps around a Learner/Estimator with the interface from sklearn.

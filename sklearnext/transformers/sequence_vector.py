@@ -104,7 +104,7 @@ class SequenceVectorEncoder(TransformerMixin, object):
         self.feature_names_ = [ "{}_{}".format(X.columns[0], i) for i in range(self.maxentries_)]
             
         if self._fit_categories:
-            s = set()
+            s = set([])
             for vec in X.iloc[:,0].values:
                 s = s | set(vec)
             self.categories_ = list(s)
