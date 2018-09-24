@@ -18,10 +18,11 @@ class LearningCollection(object):
     ----------
     feature_names : list of str
         an ordered list, one entry per entry in _features_ parameter
-    features : list of np.array
-        an ordered list of numpy-arrays, each entry having the same primary length
-    outcome : np-array
-        a numpy-array, of same length as the primary length of entries in features
+    features : list of pandas.DataFrames
+        an ordered list of pandas.DataFrames, each entry having the same primary length;
+        if possible, each dataframe at each column should only contain numeric-type objects like bool, int, float
+    outcome : pandas.Series or None
+        a optional pandas.Series or pandas.DataFrame, of same length as the primary length of entries in features
         
     Example
     -------
@@ -165,7 +166,7 @@ class LearningCollection(object):
 
 class CompactLearningCollection(object):
     """ Holds the learnable information of a FeatureDict and the connected outcome, while reducing dedundant data;
-    the internal base representation are numpy arrays 
+    the internal base representation are numpy.arrays 
     
     Attributes
     ----------
@@ -272,4 +273,19 @@ class CompactLearningCollection(object):
             c1.index = self.index[split_pos:]
             
             return c0, c1
-        
+        def to_regular(self):
+            """ transform this object into a LearningCollection, effectivly enriching the data
+            """
+            lc = LearningCollection()
+            lc.feature_names = copy.copy(self.feature_names)
+            lc.features = [ pd.DataFrame(data=f, index=self.index, columns=['_'.join(fn,str(i)) for i in range(f.shape[1])])
+                            for fn,f in zip(self.feature_names, self.features) ] 
+            if self.outcome is None:
+                lc.outcome = None
+            else:
+                lc.outcome = pd.DataFrame(data=self.outcome, index=self.index, columns=['_'.join('outcome',str(i)) for i in range(self.outcome.shape[1])])
+            return lc
+                
+                
+                
+            

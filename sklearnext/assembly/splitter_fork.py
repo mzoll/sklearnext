@@ -10,16 +10,13 @@ import numpy as np
 import pandas as pd
 
 from sklearn.base import BaseEstimator, TransformerMixin, MetaEstimatorMixin
-from sklearn.utils.metaestimators import _BaseComposition
-from sklearn import pipeline 
-from sklearn.pipeline import _fit_transform_one, _transform_one, _fit_one_transformer
-from sklearn import clone
-from sklearn.externals import six
-from sklearn.externals.joblib import Parallel, delayed, Memory
-from sklearn.utils import check_array, safe_mask
-from sklearn.utils.validation import check_memory
+
+from sklearn.externals.joblib import Parallel, delayed
 
 from sklearnext.transformers import OneHotTransformer
+
+import logging
+logger = logging.getLogger('SplitterFork')
 
 class SplitterFork(TransformerMixin, object): #_BaseComposition
     """ A Pipeline that splices up a subsequent pipeline based on the yield variable of cat_trans, applies preprocessing by
@@ -111,7 +108,7 @@ class SplitterFork(TransformerMixin, object): #_BaseComposition
             self.levels_.append(self.default_name)
             self.coverage_.append( 1. - sum(self.coverage_) )
         
-        print('grouping')
+        logger.trace('grouping')
         #--- translate labels to group_indexes
         self.lg_dict = { l:g for g,l in enumerate(self.levels_) }
         def xghelper(v):
@@ -123,7 +120,7 @@ class SplitterFork(TransformerMixin, object): #_BaseComposition
             raise Exception("Unknown level '%s' encountered for variable '%s', and no default enabled" % (v, self.varname))
         xgroups = Xg.iloc[:,0].apply(xghelper).values
         
-        print("pre")
+        logger.trace("pre")
         #--- compute the pre_pipe result and split up into groups
         Xt = self.pre_trans.fit_transform(X, y)
         if not self.take_pre_only:
@@ -139,12 +136,10 @@ class SplitterFork(TransformerMixin, object): #_BaseComposition
             #Xgt = Xg.apply(self.level_encoder_.transform, axis=1)
             Xt = pd.concat([Xt, Xgt], axis=1)
         
-        #print(Xt.columns)
-        
         Xtgroups = { gk:df for gk,df in Xt.groupby(xgroups) }
         ygroups = { gk:df for gk,df in y.groupby(xgroups) }
         
-        print("segment fit")
+        logger.trace("segment fit")
         #--- create pipes and fit them for every group
          
         self.sub_pipes_ = [ copy.deepcopy(self.sub_pipe) for l in self.levels_ ]

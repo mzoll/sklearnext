@@ -371,7 +371,7 @@ class SequenceVectorCheckboxes(TransformerMixin, object):
     def __init__(self,
             classes = None,
             default_name = None):
-        self.classes = classes
+        self.classes_ = classes
         self.default_name = default_name
         #--- fields for configuration during fit
         self._fit_classes = classes is None

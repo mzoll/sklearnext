@@ -5,23 +5,20 @@ Created on Dec 8, 2017
 '''
 
 import sys, copy
-import itertools
 import numpy as np
 import pandas as pd
 
 from sklearn.base import BaseEstimator, TransformerMixin, MetaEstimatorMixin
 from sklearn.utils.metaestimators import _BaseComposition
-from sklearn import pipeline 
-from sklearn.pipeline import _fit_transform_one, _transform_one, _fit_one_transformer
-from sklearn import clone
-from sklearn.externals import six
-from sklearn.externals.joblib import Parallel, delayed, Memory
-from sklearn.utils import check_array, safe_mask
-from sklearn.utils.validation import check_memory
+
+from sklearn.externals.joblib import Parallel, delayed
+
+import logging
+logger = logging.getLogger('CategoryFork')
 
 
 class CategoryFork(TransformerMixin, object): #_BaseComposition
-    """ A Pipeline that forks to dedicated pipelines on factor-levels of a certain categorical variable
+    """ A Pipeline that forks to dedicated pipelines on basis of factor-levels found for a specified categorical variable
     
     Parameters
     ----------
@@ -96,19 +93,19 @@ class CategoryFork(TransformerMixin, object): #_BaseComposition
             self.levelgroups_ = [i for i in range(len(self.levels_))]
         
         #instantize a pipeline for each level group now
-        print('copy init')
+        logger.debug('copy init')
         self.pipeline_list_ = [copy.deepcopy(self.pipeline) for lg in self.levelgroups_ for i in np.unique(self.levelgroups_)]
-        print('done')
+        logger.debug('done')
         
         #segment the dataframe
         xgroups = self._segmentX(X).values
-        print('group done')
+        logger.debug('group done')
         if len(np.unique(xgroups)) != len(np.unique(self.levelgroups_)):
             raise Exception("Not all pipelines can be fitted because of insufficent data coverage")
         
         Xgroups = { gk:df for gk,df in X.groupby(xgroups) }
         ygroups = { gk:df for gk,df in y.groupby(xgroups) }
-        print('fit')
+        logger.debug('fit')
         pls = Parallel(n_jobs=self.n_jobs)(
             delayed(_fit_one_fittable)(self.pipeline_list_[gk], Xgroups[gk], ygroups[gk])
             for gk in Xgroups.keys())

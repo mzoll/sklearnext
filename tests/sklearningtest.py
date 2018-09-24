@@ -8,8 +8,8 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from sklearnext.sklearning.dummy import DummyClassifier, DummyRegressor
-from sklearnext.sklearning.oneprob_classifier import OneProbClassifierWrapper
+from sklearnext.sklearn.estimators.dummy import DummyClassifier, DummyRegressor
+from sklearnext.sklearn.estimators.oneprob_classifier import OneProbClassifierWrapper
 
 class Test(unittest.TestCase):
 

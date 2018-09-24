@@ -95,23 +95,33 @@ class FeatureTransformFacility(object):
     def get_feature_keys(self):
         return list(self.pipeline_dict.keys())
     
-    def derive_dimensions_dict(self, inputs_dict):
+    def derive_dimensions_dict(self):
         """ get the ouput shape for each generated feature """
         assert( self._is_fitted )
-        return { k:len(p.get_feature_names()) for k,p in self.pipeline_dict.items() }
+        dim_dict = {}    
+        for k,p in self.pipeline_dict.items():
+            dim_dict[k+'_len'] = len(p.get_feature_names())
+            last_trans = p.steps[-1][1]
+            if hasattr(last_trans, 'classes_'):
+                dim_dict[k+'_depth'] = len(last_trans.classes_)
+            if hasattr(last_trans, 'classes'):
+                print(last_trans)
+                dim_dict[k+'_depth'] = len(last_trans.classes)
+        return dim_dict 
+    
         
     
 def _fit_one_transformer(ik, transformer, X, y):
-    logger.warn("fit {}".format(ik))
+    logger.debug("fit {}".format(ik))
     return transformer.fit(X, y)
 
 def _transform_one(ik, transformer, X):
-    logger.warn("transform {}".format(ik))
+    logger.debug("transform {}".format(ik))
     res = transformer.transform(X)
     return res
 
 def _fit_transform_one(ik, transformer, X, y, **fit_params):
-    logger.warn("fit_transform {}".format(ik))
+    logger.debug("fit_transform {}".format(ik))
     if hasattr(transformer, 'fit_transform'):
         res = transformer.fit_transform(X, y, **fit_params)
     else:

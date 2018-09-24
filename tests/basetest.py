@@ -8,8 +8,6 @@ from sklearnext.base import assert_dfncol
 
 
 class Test(unittest.TestCase):
-
-
     def testDfassert(self):
         import pandas as pd
         
