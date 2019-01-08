@@ -45,6 +45,7 @@ class ColumnsSelect(TransformerMixin, object):
     def fit(self, X, y=None, **fit_params):
         return self
     def transform(self, X):
+        ''' inert operation: just return all selected variables '''
         return X[self.feature_names]
     def transform_dict(self, d):
 #     del_keys= []

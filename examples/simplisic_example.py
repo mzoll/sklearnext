@@ -75,9 +75,9 @@ print(X_train.shape, y_train.shape, X_test.shape, y_test.shape)
 #======================
 
 from sklearnext.assembly import *
-from sklearnext.sklearning.gbdtree_learner import *
-from sklearnext.sklearning.oneprob_classifier import *
-from sklearnext.learning.wrapper import *
+from sklearnext.sklearn.estimators.gbbtree_learner import *
+from sklearnext.sklearn.estimators.oneprob_classifier import *
+from sklearnext.estimators.wrappers import *
 from sklearnext.transformers import *
 
 #assemble the pipeline by bits an pieces
@@ -118,12 +118,12 @@ skl_c0 = GrowingGBClassifier(ntrees_start = 100,
 #as we are interested in the probabilities rather than the absolute binary classification use this shim
 skl_cc0 = OneProbClassifierWrapper(skl_c0, predictClass=1)
 
-# as OneProbClassifier (and GrowingGBClassifier) are using the sklearn interface, make them pandas compatible
-cc0 = SklearnerWrapper(skl_cc0)
+# as OneProbClassifier (and GrowingGBClassifier) are using the sklearn interface, make them sklearnext compatible
+cc0 = SKLEstimatorExtender(skl_cc0)
 
 #this is a complete pipeline, which uses all features except 'Device'
 pred_pipe = Pipeline([
-        ("fu",fu),
+        ("fu", fu),
         ("cc0", cc0)
     ])
 

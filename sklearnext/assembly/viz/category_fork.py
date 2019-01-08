@@ -17,12 +17,14 @@ import matplotlib.patches as mpatches
   
 def plot_CategoryFork_FeatureImportances(cf, coverage_weighted=True, n_many=sys.maxsize):
     """
+    Plot the feature importances as their fractions over all pipelines in this CategoryFork.
+    
     Parameters
     ----------
     cf : CathegoryFork instance
         used to obtain feature importances and stuff
     coverage_weighted : bool
-        weight in the coverage for the feature impotance to get a ballanced impression (default: True)
+        weight in the coverage for the feature importance to get a ballanced impression (default: True)
     """
     
     fi = cf.get_feature_importances_deep()
@@ -108,10 +110,10 @@ def plot_CategoryFork_prediction(cf, X):
     
     y_plot = []
     for gk,df in Xp.groupby(cf._segmentX(Xp)):
-        plt1.hist(df['y'], 100, alpha=0.8, label=str(gk), histtype=u'step') #barstacked #step
+        plt1.hist(df['y'], 100, alpha=0.8, label=cf.levels_[gk], histtype=u'step') #barstacked #step
         y_plot.append(df['y'].values)
         
-    plt.yscale("log", nonposx='clip')
+    plt.yscale("log") #, nonposx='clip')
     plt.legend(loc='upper right')
 
     return fig    

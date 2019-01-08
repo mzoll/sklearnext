@@ -14,7 +14,7 @@ import pandas as pd
 
 from sklearn.base import TransformerMixin, MetaEstimatorMixin
 
-from sklearn.pipeline import _fit_transform_one, _transform_one, _fit_one_transformer
+#from sklearn.pipeline import _fit_transform_one, _transform_one, _fit_one_transformer
 from sklearn import clone
 from sklearn.externals import six
 from sklearn.externals.joblib import Parallel, delayed, Memory
@@ -43,7 +43,7 @@ class FeatureUnion(pipeline.FeatureUnion):
         """
         self._validate_transformers()
         result = Parallel(n_jobs=self.n_jobs)(
-            delayed(_fit_transform_one)(trans, weight, X, y, **fit_params)
+            delayed(_fit_transform_one)(trans, X, y, weight=None, **fit_params)
             for name, trans, weight in self._iter())
 
         if not result:
@@ -68,7 +68,7 @@ class FeatureUnion(pipeline.FeatureUnion):
             sum of n_components (output dimension) over transformers.
         """
         Xs = Parallel(n_jobs=self.n_jobs)(
-            delayed(_transform_one)(trans, weight, X)
+            delayed(_transform_one)(trans, X, y=None, weight=None)
             for name, trans, weight in self._iter())
         if not Xs:
             # All transformers are None
@@ -105,7 +105,7 @@ class Pipeline(pipeline.Pipeline):
         return dt
 
 
-class TransformerPipe(TransformerMixin, object):
+class TransformerPipe(object):
     """ a pipeline only consistent of transformers; provides convenience when transforming
     by a sequential chain of Transformers
     Parameters
@@ -162,7 +162,7 @@ class TransformerPipe(TransformerMixin, object):
                     cloned_transformer = clone(transformer)
                 # Fit or load from cache the current transfomer
                 Xt, fitted_transformer = fit_transform_one_cached(
-                    cloned_transformer, None, Xt, y,
+                    cloned_transformer, Xt, y, weight=None,
                     **fit_params_steps[name])
                 # Replace the transformer of the step with the fitted
                 # transformer. This is necessary when loading the transformer
@@ -188,6 +188,7 @@ class TransformerPipe(TransformerMixin, object):
             step, param = pname.split('__', 1)
             fit_params_steps[step][param] = pval
         Xt = X
+        #for all steps except the last perform fit_transform
         for step_idx, (name, transformer) in enumerate(self.steps[:-1]):
             if transformer is None:
                 pass
@@ -200,18 +201,17 @@ class TransformerPipe(TransformerMixin, object):
                     cloned_transformer = clone(transformer)
                 # Fit or load from cache the current transfomer
                 Xt, fitted_transformer = fit_transform_one_cached(
-                    cloned_transformer, None, Xt, y,
-                    **fit_params_steps[name])
-                
+                    cloned_transformer, Xt, y, weight=None, 
+**fit_params_steps[name])
                 # Replace the transformer of the step with the fitted
                 # transformer. This is necessary when loading the transformer
                 # from the cache.
                 self.steps[step_idx] = (name, fitted_transformer)
         
+        #for the last step only fit 
         self.steps[-1][1].fit(Xt, y, **fit_params)
             
         return self
-        
     def transform(self, X):
         Xt = X
         for name, transform in self.steps:
@@ -246,7 +246,7 @@ class TransformerPipe(TransformerMixin, object):
                     cloned_transformer = clone(transformer)
                 # Fit or load from cache the current transfomer
                 Xt, fitted_transformer = fit_transform_one_cached(
-                    cloned_transformer, None, Xt, y,
+                    cloned_transformer, Xt, y, weight=None,
                     **fit_params_steps[name])
                 # Replace the transformer of the step with the fitted
                 # transformer. This is necessary when loading the transformer
@@ -261,3 +261,30 @@ class TransformerPipe(TransformerMixin, object):
         return dt
     def get_feature_names(self):
         return self.steps[-1][-1].get_feature_names()
+
+
+#--- Auxilary
+# weight and fit_params are not used but it allows _fit_one_transformer,
+# _transform_one and _fit_transform_one to have the same signature to
+#  factorize the code in ColumnTransformer
+def _fit_one_transformer(transformer, X, y, weight=None, **fit_params):
+    return transformer.fit(X, y)
+
+
+def _transform_one(transformer, X, y, weight, **fit_params):
+    res = transformer.transform(X)
+    # if we have a weight for this transformer, multiply output
+    if weight is None:
+        return res
+    return res * weight
+
+
+def _fit_transform_one(transformer, X, y, weight, **fit_params):
+    if hasattr(transformer, 'fit_transform'):
+        res = transformer.fit_transform(X, y, **fit_params)
+    else:
+        res = transformer.fit(X, y, **fit_params).transform(X)
+    # if we have a weight for this transformer, multiply output
+    if weight is None:
+        return res, transformer
+    return res * weight, transformer
