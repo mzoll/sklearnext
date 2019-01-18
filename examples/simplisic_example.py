@@ -2,20 +2,21 @@
 simplistic example showing how to use the modules contained in sklearnext
 '''
 
-import sys, os, pathlib
-sys.path.insert(0, str(pathlib.Path(os.getcwd()).parents[1] / 'python'))
-
-#some basic imports
 import sys, os, copy
 import numpy as np
-import datetime as dt
 import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearnext.assembly import *
+from sklearnext.sklearn.estimators.gbdtree_learner import *
+from sklearnext.sklearn.estimators.oneprob_classifier import *
+from sklearnext.estimators.wrappers import *
+from sklearnext.transformers import *
+from sklearnext.metric.check import ClassifierOvertrainCheck
+from sklearnext.visualization.viz import plot_FeatureImportances
+from sklearnext.assembly.viz.category_fork import plot_CategoryFork_FeatureImportances
 
-#=========================================================================
-# construct a dataset with some observations and all kind of mixed lables
-#=========================================================================
 
-def constructData(nObs):
+def construct_data(nObs):
     #--- create a observation matrix
     idx = np.array(list(range(nObs))) + 1000
     c0 = np.array(np.random.choice(['A','B'], size=int(nObs*0.8)).tolist() + ['A']*int(nObs*0.2) )
@@ -55,112 +56,113 @@ def constructData(nObs):
             else:
                 return int(prob>0.5)
         
-    y= X.apply(xthelper(), axis=1)
+    y = X.apply(xthelper(), axis=1)
     
     return X,y
 
-X,y = constructData(10000)
 
-print(X.shape, y.shape, "coverage %f" % (np.sum(y)/y.shape[0])) 
-print(X.columns)
+def pipeline_assembly():
+    """ assemble the pipeline by bits an pieces
+    :return: pipeline
+    """
 
-#split up dataset into train and (held out)test sample
-from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.2, random_state=0)
+    #OneHot/Label encoding for feature 'Label'
+    tf0 = TransformerPipe([
+            ('pagehistExtr', ColumnsSelect(['Label'])),
+            ('labelEnc', OneHotTransformer())
+        ])
 
-print(X_train.shape, y_train.shape, X_test.shape, y_test.shape)
+    #Extraction of Hour and Day-of-Month fromfeature  'Time'
+    tf1 = TransformerPipe([
+            ('starttimeExtr', ColumnsSelect('Time')),
+            ('hwdmyExtr', HourWeekdayDayMonthYearTransformer()),
+            ('hwdselect', ColumnsSelect(['Time_hour', 'Time_day']))
+        ])
 
-#======================
-# PIPELINE ASSEMBLY
-#======================
+    #assemble a set of to use features
+    fu = FeatureUnion([
+            ('tf0', tf0),
+            ('tf1', tf1),
+            ('tf2', ColumnsSelect('Cont')) # feature 'Cont' could have been wrapped into its own pipeline,
+                                           # but no need to convolute as already in correct format
+        ], n_jobs= 1)
 
-from sklearnext.assembly import *
-from sklearnext.sklearn.estimators.gbbtree_learner import *
-from sklearnext.sklearn.estimators.oneprob_classifier import *
-from sklearnext.estimators.wrappers import *
-from sklearnext.transformers import *
+    #define a Classifier estimator; here one that is smarter as the average by growing additional trees
+    skl_c0 = GrowingGBClassifier(ntrees_start = 100,
+                ntress_increment = 10,
+                est_params = {'max_depth': 3,
+                              'max_features': None}, #auto
+                scoring = 'log_loss', #binary_roc_auc
+                min_score_improvement = 1e-5,
+                nrounds_noimp = 2,
+                nrounds_stop = sys.maxsize,
+                cv_test_frac = 0.2,
+                cv_n_splits = 3)
 
-#assemble the pipeline by bits an pieces
+    #as we are interested in the probabilities rather than the absolute binary classification use this shim
+    skl_cc0 = OneProbClassifierWrapper(skl_c0, predictClass=1)
 
-#OneHot/Label encoding for feature 'Label'
-tf0 = TransformerPipe([
-        ('pagehistExtr', ColumnsSelect(['Label'])),
-        ('labelEnc', OneHotTransformer())
-    ])
+    # as OneProbClassifier (and GrowingGBClassifier) are using the sklearn interface, make them sklearnext compatible
+    cc0 = SKLEstimatorExtender(skl_cc0)
 
-#Extraction of Hour and Day-of-Month fromfeature  'Time'
-tf1 = TransformerPipe([
-        ('starttimeExtr', ColumnsSelect('Time')),
-        ('hwdmyExtr', HourWeekdayDayMonthYearTransformer()),
-        ('hwdselect', ColumnsSelect(['Time_hour', 'Time_day']))
-    ])
+    #this is a complete pipeline, which uses all features except 'Device'
+    pred_pipe = Pipeline([
+            ("fu", fu),
+            ("cc0", cc0)
+        ])
 
-#assemble a set of to use features
-fu = FeatureUnion([
-        ('tf0', tf0),
-        ('tf1', tf1),
-        ('tf2', ColumnsSelect('Cont')) # feature 'Cont' could have been wrapped into its own pipeline,
-                                       # but no need to convolute as already in correct format
-    ], n_jobs= 1)
+    #make a categorical fork for the feature Device, which has two levels
+    cf = CategoryFork(pred_pipe,
+                      'Device',
+                      [('A'),('B')],
+                      n_jobs=1 )
 
-#define a Classifier estimator; here one that is smarter as the average by growing additional trees
-skl_c0 = GrowingGBClassifier(ntrees_start = 100,
-            ntress_increment = 10,
-            est_params = {'max_depth': 3,
-                          'max_features': None}, #auto
-            scoring = 'log_loss', #binary_roc_auc
-            min_score_improvement = 1e-5,
-            nrounds_noimp = 2,
-            nrounds_stop = sys.maxsize,
-            cv_test_frac = 0.2, 
-            cv_n_splits = 3)
-                      
-#as we are interested in the probabilities rather than the absolute binary classification use this shim
-skl_cc0 = OneProbClassifierWrapper(skl_c0, predictClass=1)
-
-# as OneProbClassifier (and GrowingGBClassifier) are using the sklearn interface, make them sklearnext compatible
-cc0 = SKLEstimatorExtender(skl_cc0)
-
-#this is a complete pipeline, which uses all features except 'Device'
-pred_pipe = Pipeline([
-        ("fu", fu),
-        ("cc0", cc0)
-    ])
-
-#make a categorical fork for the feature Device, which has two levels
-cf = CategoryFork(pred_pipe,
-                  'Device',
-                  [('A'),('B')],
-                  n_jobs=1 )
-
-#define this by an alias
-main_pipe = cf
-
-#=============================
-# Train, Verify and Quantisize the model
-#=============================
-
-#--- train the pipeline
-main_pipe.fit(X_train, y_train)
-
-p_train = main_pipe.predict(X_train)
-p_test = main_pipe.predict(X_test)
-
-#--- verify the model
-from sklearnext.metric import *
-ClassifierOvertrainCheck(y_train, p_train, y_test, p_test)
+    #define this by an alias
+    return cf
 
 
-#--- have a look at the most important features for each pipeline
-fi_deep = cf.get_feature_importances_deep()
-print(fi_deep)
+#--------------------------------------------------
+if __name__ == '__main__':
 
-fi = cf.get_feature_importances()
-print(fi)
+    # =========================================================================
+    # construct a dataset with some observations and all kind of mixed lables
+    # =========================================================================
 
-#--- plot teh feature importances
-from sklearnext.visualization.viz import *
-plot_FeatureImportances(main_pipe).show()
-plot_CategoryFork_FeatureImportances(main_pipe, coverage_weighted=True).show()
-plot_CategoryFork_FeatureImportances(main_pipe, coverage_weighted=False).show()
+    X, y = construct_data(10000)
+    print(X.shape, y.shape, "coverage %f" % (np.sum(y) / y.shape[0]))
+    print(X.columns)
 
+    # split up dataset into train and (held out)test sample
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.2, random_state=0)
+    print(X_train.shape, y_train.shape, X_test.shape, y_test.shape)
+
+    # ======================
+    # PIPELINE ASSEMBLY
+    # ======================
+
+    main_pipe = pipeline_assembly()
+
+    # =============================
+    # Train, Verify and Quantisize the model
+    # =============================
+
+    # --- train the pipeline
+    main_pipe.fit(X_train, y_train)
+
+    p_train = main_pipe.predict(X_train)
+    p_test = main_pipe.predict(X_test)
+
+    # --- verify the model
+    ClassifierOvertrainCheck(y_train, p_train, y_test, p_test)
+
+    # --- have a look at the most important features for each pipeline
+    fi_deep = main_pipe.get_feature_importances_deep()
+    print(fi_deep)
+    fi = main_pipe.get_feature_importances()
+    print(fi)
+
+    # --- plot the feature importances
+    plot_FeatureImportances(main_pipe).show()
+    plot_CategoryFork_FeatureImportances(main_pipe, coverage_weighted=True).show()
+    plot_CategoryFork_FeatureImportances(main_pipe, coverage_weighted=False).show()

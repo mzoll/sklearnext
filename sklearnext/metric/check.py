@@ -5,25 +5,36 @@ _CLIP = 1E-6
 
 def RocAucScore(y_true, y_pred_proba):
     """ compute and print the ROC AUC score """
-    score = roc_auc_score(y_true, y_pred_proba)
-    #print("RocAuc score : %f" % (score))
-    return score
+    try:
+        score = roc_auc_score(y_true, y_pred_proba)
+        #print("RocAuc score : %f" % (score))
+        return score
+    except:
+        return float('nan')
 
 def LogLossScore(y_true, y_pred_proba):
-    y_pred_proba = np.clip(y_pred_proba, _CLIP, 1.-_CLIP)
-    score = log_loss(y_true, y_pred_proba)
-    #print("LogLoss score : %f" % (score))
-    return score
-
+    try:
+        y_pred_proba = np.clip(y_pred_proba, _CLIP, 1.-_CLIP)
+        score = log_loss(y_true, y_pred_proba)
+        #print("LogLoss score : %f" % (score))
+        return score
+    except:
+        return float('nan')
 def LogLossScore_adapted(y_true, y_pred_proba):
-    y_pred_proba = np.clip(y_pred_proba, _CLIP, 1.-_CLIP)
-    score = log_loss(y_true, y_pred_proba) / log_loss(y_true, np.repeat( np.mean(y_true), len(y_true) )) 
-    #print("Adapted LogLoss score : %f" % (score))
-    return score
+    try:
+        y_pred_proba = np.clip(y_pred_proba, _CLIP, 1.-_CLIP)
+        score = log_loss(y_true, y_pred_proba) / log_loss(y_true, np.repeat( np.mean(y_true), len(y_true) ))
+        #print("Adapted LogLoss score : %f" % (score))
+        return score
+    except:
+        return float('nan')
 
 def PrcAucScore(y_true, y_pred_proba):
-    precision, recall, _ = precision_recall_curve(y_true, y_pred_proba)
-    return auc(precision, recall, 1)
+    try:
+        precision, recall, _ = precision_recall_curve(y_true, y_pred_proba)
+        return auc(precision, recall, 1)
+    except:
+        return float('nan')
 
 
 def ClassifierOvertrainCheck(y_train, y_train_pred_proba, y_test, y_test_pred_proba):
@@ -55,9 +66,12 @@ def ClassifierOvertrainCheck(y_train, y_train_pred_proba, y_test, y_test_pred_pr
 #========================
 
 def R2Score(y_true, y_pred):
-    score = r2_score(y_true, y_pred) 
-    #print("Adapted R2 score : %f" % (score))
-    return score
+    try:
+        score = r2_score(y_true, y_pred)
+        #print("Adapted R2 score : %f" % (score))
+        return score
+    except:
+        return float('nan')
 
 def RegressorOvertrainCheck(y_train, y_train_pred, y_test, y_test_pred):
     """ print out measures for possible overtraining """
