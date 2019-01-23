@@ -42,7 +42,7 @@ class DummyRegressor(BaseEstimator, object):
         self.min_= minval
         self.max_= maxval
     def fit(self, X, y, **fit_params):
-        self.feature_importances_ = np.array([1./len(X[1,:])]*3)
+        self.feature_importances_ = np.array([1./X.shape[1]]*3)
         return self
     def predict(self, X):
         return np.linspace(self.min_, self.max_, len(X))

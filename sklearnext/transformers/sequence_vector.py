@@ -344,9 +344,9 @@ class SequenceVectorEncoderNEXT(TransformerMixin, object):
 
 
 class SequenceVectorCheckboxes(TransformerMixin, object):
-    """ Create Checkboxes for all values in classes, for each value in the passed sequence vector the checkbox will be ticked
-    if defaultname is not None, the checkbox under that value will be ticked if the encountered value cannot be found in classes
-    (default_name might be appended to classes if not contained)
+    """ Create Checkboxes for all values in classes, for each value in the passed sequence vector the checkbox will be ticked.
+    if _default_name_ is not None, the checkbox under that value will be ticked if the encountered value cannot be found in _classes_
+    (_default_name_ might be appended to classes if not contained)
     
     Parameters
     ----------
@@ -374,7 +374,7 @@ class SequenceVectorCheckboxes(TransformerMixin, object):
         self.classes_ = classes
         self.default_name = default_name
         #--- fields for configuration during fit
-        self._fit_classes = classes is None
+        self._fit_classes = classes is None  # classes should be fitted by the module itself
     def _class_to_feature_name(self, classname):
         return "{}_{}".format(self._incols[0], classname)
     def fit(self, X, y=None, **fit_params):
@@ -389,8 +389,6 @@ class SequenceVectorCheckboxes(TransformerMixin, object):
                 #    continue
                 s = s | set(vec)
             self.classes_ = list(s)
-        else:
-            self.classes_ = self.classes
             
         if self.default_name is not None and self.default_name not in self.classes_:
             self.classes_.append(self.default_name)
