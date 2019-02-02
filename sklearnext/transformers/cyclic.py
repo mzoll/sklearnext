@@ -1,9 +1,8 @@
-'''
+"""
 Created on May 14, 2018
 
 @author: marcel.zoll
-'''
-
+"""
 
 import pandas as pd
 import numpy as np
@@ -11,7 +10,8 @@ import math
 
 from sklearnext.base import assert_dfncol
 
-from sklearn.base import TransformerMixin 
+from sklearn.base import TransformerMixin
+
 
 class CyclicSineCosineTransformer(TransformerMixin, object):
     """ take a single column that has a certain constant periodicity, and express it as its sine and cosine transformatives
@@ -39,32 +39,38 @@ class CyclicSineCosineTransformer(TransformerMixin, object):
     d = {'A': 0}
     t.transform_dict(d)
     >>>{'A_cyclicsin': 0.5, 'A_cyclicsin': 1.0}
-    
     """
+
     def __init__(self, periodicity, pure_positive=False):
         self.periodicity = periodicity
         self.pure_positive = pure_positive
-    def fit(self, X, y= None, **fit_params):
+
+    def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
-        self.incols= list(X.columns)
-        self.feature_names = [self.incols[0]+'_cyclicsin', self.incols[0]+'_cycliccos']
+        self.incols = list(X.columns)
+        self.feature_names = [self.incols[0] + '_cyclicsin', self.incols[0] + '_cycliccos']
         return self
+
     def transform(self, X):
         assert_dfncol(X, 1)
+
         def xthelper(val):
-            t = val/self.periodicity *2.*math.pi
+            t = val / self.periodicity * 2. * math.pi
             return pd.Series([math.sin(t), math.cos(t)])
-        Xt = X.iloc[:,0].apply(xthelper)
+
+        Xt = X.iloc[:, 0].apply(xthelper)
         if self.pure_positive:
-            Xt = Xt.apply(lambda t: 0.5*(t+1.), axis=1)
-        Xt.columns= self.feature_names        
+            Xt = Xt.apply(lambda t: 0.5 * (t + 1.), axis=1)
+        Xt.columns = self.feature_names
         return Xt
+
     def transform_dict(self, d):
         val = d.pop(self.incols[0])
-        p = val/self.periodicity *2.*math.pi
+        p = val / self.periodicity * 2. * math.pi
         t = np.array([math.sin(p), math.cos(p)])
         if self.pure_positive:
-            t = 0.5*(t+1.)
-        d.update( dict(zip(self.feature_names, t)) )
+            t = 0.5 * (t + 1.)
+        d.update(dict(zip(self.feature_names, t)))
+
     def get_feature_names(self):
         return self.feature_names

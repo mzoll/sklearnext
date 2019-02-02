@@ -1,10 +1,7 @@
-'''
+"""
 simplistic example showing how to use the modules contained in sklearnext
-'''
+"""
 
-import sys, os, copy
-import numpy as np
-import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearnext.assembly import *
 from sklearnext.sklearn.estimators.gbdtree_learner import *
@@ -66,17 +63,29 @@ def pipeline_assembly():
     :return: pipeline
     """
 
-    #OneHot/Label encoding for feature 'Label'
+    # OneHot/Label encoding for feature 'Label'
     tf0 = TransformerPipe([
             ('pagehistExtr', ColumnsSelect(['Label'])),
             ('labelEnc', OneHotTransformer())
         ])
 
-    #Extraction of Hour and Day-of-Month fromfeature  'Time'
+    # Extraction of Hour and Day-of-Month from feature 'Time'
     tf1 = TransformerPipe([
             ('starttimeExtr', ColumnsSelect('Time')),
-            ('hwdmyExtr', HourWeekdayDayMonthYearTransformer()),
-            ('hwdselect', ColumnsSelect(['Time_hour', 'Time_day']))
+            ('native_time', FeatureUnion([
+                ('hour_pipe', TransformerPipe([ # extract the hour and transfor it to sine and cosine
+                    ('hwdmyExtr', HourWeekdayDayMonthYearTransformer()),
+                    ('hwdselect', ColumnsSelect(['Time_hour'])),
+                    ('sincosTrans', CyclicSineCosineTransformer(periodicity=24, pure_positive=True))
+                ])),
+                ('dayofmonth_pipe', TransformerPipe([  # dayofmonth-fraction: take absolute and a sine/cosine transformed
+                    ('monthday', MonthfracExtractor()),
+                    ('native_time', FeatureUnion([
+                        ('all', ColumnsAll()),
+                        ('sincosTrans', CyclicSineCosineTransformer(periodicity=1, pure_positive=True))
+                    ]))
+                ]))
+            ]))
         ])
 
     #assemble a set of to use features

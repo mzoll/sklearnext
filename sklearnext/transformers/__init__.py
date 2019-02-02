@@ -26,3 +26,4 @@ from .general import *
 from .lambda_func import *
 from .sequence_vector import *
 from .time import *
+from .cyclic import *

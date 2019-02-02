@@ -232,7 +232,7 @@ class MonthdayExtractor(TransformerMixin, object):
     Note: This Transformer fixes the number of days in each month to 31 and deducts 1 , so effectively pictures values on the interval (0...30).
         Thus this Transformer is giving an absolute on the monthday, not a relative!.
         (Explanation: Monthday is a bit special in the sense that the days in each month are varying and so do not reflect 
-        how far along into a month the time in question is, or how muchg time/days are left to the beginning of the next month.
+        how far along into a month the time in question is, or how much time/days are left to the beginning of the next month.
         For this purpose use the MonthfracExtractor instead!)
     
     Parameters
