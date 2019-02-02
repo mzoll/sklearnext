@@ -84,38 +84,99 @@ class HourWeekdayDayMonthYearTransformer(TransformerMixin):
     
     Components : 
     hour(float), weekday(uint), day(uint), month(uint), year(uint)
-    
+
+    Parameters
+    ----------
+    hour : bool
+        should the hour of the day be extracted as an float (default: True)
+    weekday : bool
+        should the weekday be extracted as an integer label (default: True)
+    day : bool
+        should the day of the month bve extracted as an absolute label (default: True)
+    month : bool
+        should the month of the year be extracted as an absolute label (default: True)
+    year : bool
+        should the year be extracted as an absolute label (default: True)
+
     Example
     -------
     df = pandas.DataFrame({'A': [datetime.datetime(2018,1,2,3,4,5)],]})
     HourWeekdayDayMonthYearTransformer().fit_transform(df)
     #>>> pandas.DataFrame({'A_hour': [3.068056], 'A_weekday': [0], 'A_day': [2], 'A_month': [1], 'A_year': [2018] })
     """ 
-    def __init__(self):
-        pass
+    def __init__(self, hour=True, weekday=True, day=True, month=True, year=True):
+        self.ext_hour = hour
+        self.ext_weekday = weekday
+        self.ext_day = day
+        self.ext_month = month
+        self.ext_year = year
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
         self.incols = X.columns
         self.varname = self.incols[0]
-        self.feature_names_ = [self.incols[0]+'_'+suffix for suffix in ['hour','weekday','day','month','year']]
+        self.feature_names_ = []
+        if self.ext_hour:
+            self.feature_names_.append(self.incols[0]+'_'+'hour')
+        if self.ext_weekday:
+            self.feature_names_.append(self.incols[0]+'_'+'weekday')
+        if self.ext_day:
+            self.feature_names_.append(self.incols[0]+'_'+'day')
+        if self.ext_month:
+            self.feature_names_.append(self.incols[0]+'_'+'month')
+        if self.ext_year:
+            self.feature_names_.append(self.incols[0]+'_'+'year')
         return self
     def transform(self, X):
-        def iterhelper(t):
-            return pd.Series([t.hour + t.minute/60., int(t.weekday()), int(t.day), int(t.month), int(t.year)])
-        Xt = X[self.varname].apply(iterhelper)
-        Xt.columns = self.feature_names_
-        Xt[self.varname+'_weekday'] = Xt[self.varname+'_weekday'].astype('uint8')
-        Xt[self.varname+'_day'] = Xt[self.varname+'_day'].astype('uint8')
-        Xt[self.varname+'_month'] = Xt[self.varname+'_month'].astype('uint8')
-        Xt[self.varname+'_year'] = Xt[self.varname+'_year'].astype('uint8')
-        return Xt
+        if self.ext_hour and self.ext_weekday and self.ext_day and self.ext_month and self.ext_year:
+            def iterhelper(t):
+                return pd.Series([t.hour + t.minute/60., int(t.weekday()), int(t.day), int(t.month), int(t.year)])
+            Xt = X[self.varname].apply(iterhelper)
+            Xt.columns = self.feature_names_
+            Xt[self.varname+'_weekday'] = Xt[self.varname+'_weekday'].astype('uint8')
+            Xt[self.varname+'_day'] = Xt[self.varname+'_day'].astype('uint8')
+            Xt[self.varname+'_month'] = Xt[self.varname+'_month'].astype('uint8')
+            Xt[self.varname+'_year'] = Xt[self.varname+'_year'].astype('uint8')
+            return Xt
+        else:
+            dfs = []
+            if self.ext_hour:
+                s = X[self.varname].apply(lambda t: t.hour + t.minute /60.)
+                s.name = self.varname + '_hour'
+                dfs.append(s)
+            if self.ext_weekday:
+                s = X[self.varname].apply(lambda t: t.weekday)
+                s.name = self.varname + '_weekday'
+                s = s.astype('uint8')
+                dfs.append(s)
+            if self.ext_day:
+                s = X[self.varname].apply(lambda t: t.day)
+                s.name = self.varname + '_day'
+                s = s.astype('uint8')
+                dfs.append(s)
+            if self.ext_month:
+                s = X[self.varname].apply(lambda t: t.month)
+                s.name = self.varname + '_month'
+                s = s.astype('uint8')
+                dfs.append(s)
+            if self.ext_year:
+                s = X[self.varname].apply(lambda t: t.year)  )
+                s.name = self.varname + '_year'
+                s = s.astype('uint8')
+                dfs.append(s)
+            return pd.concat(dfs, axis=1)
+
     def transform_dict(self, d):
         t = d.pop(self.varname)
-        d[self.varname+'_hour'] = int(t.hour) + t.minute/60.
-        d[self.varname+'_weekday'] = int(t.weekday())
-        d[self.varname+'_day'] = int(t.day)
-        d[self.varname+'_month'] = int(t.month)
-        d[self.varname+'_year'] = int(t.year)
+        if self.ext_hour:
+            d[self.varname+'_hour'] = int(t.hour) + t.minute/60.
+        if self.ext_weekday:
+            d[self.varname + '_weekday'] = int(t.weekday)
+        if self.ext_day:
+            d[self.varname+'_day'] = int(t.day)
+        if self.ext_month:
+            d[self.varname+'_month'] = int(t.month)
+        if self.ext_year:
+            d[self.varname+'_year'] = int(t.year)
         return d
         
     def get_feature_names(self):
@@ -183,7 +244,7 @@ class WeekdayExtractor(TransformerMixin, object):
     Parameters
     ----------
     discrete : bool
-        use descrete (non-fractional) values instead of continious floats (default: False)
+        use discrete (non-fractional) values instead of continuous floats (default: False)
     normalize : bool
         the output will be expressed in the interval [0..1]
     """
@@ -194,9 +255,10 @@ class WeekdayExtractor(TransformerMixin, object):
     def dt_weekday_cont(dtval):
         return dtval.weekday() + (dtval.hour + dtval.minute/60. + dtval.second/3600.) / 24.
     
-    def __init__(self, discrete= False,  normalize=False):
+    def __init__(self, discrete= False, normalize=False, week_starts_so=False):
         self.discrete = discrete
         self.normalize = normalize
+        self.week_starts_so = week_starts_so
         
         if self.discrete:
             self._transfunc = self.dt_weekday_disc
@@ -212,11 +274,13 @@ class WeekdayExtractor(TransformerMixin, object):
         assert_dfncol(X, 1)
         #assert( isinstance(X.iloc[:,0].dtype, dt.datetime) ) #FIXME simple check for type
         Xt = pd.DataFrame( X.iloc[:,0].apply(self._transfunc) )
+        if self.week_starts_so:
+            Xt = pd.DataFrame(Xt.iloc[:,0].apply(lambda v: (v+6)%7))
         if self.normalize:
-            Xt = Xt.apply(lambda v: v/7., axis=1)
+            Xt = pd.DataFrame(Xt.iloc[:,0].apply(lambda v: v/7.))
         Xt.columns = self.feature_names_    
         return Xt    
-    def transform_dict(self, d):    
+    def transform_dict(self, d):
         dtval = d.pop(self.incols[0])
         t = self.transfunc(dtval)
         if self.normalize:
@@ -330,7 +394,7 @@ class MonthfracExtractor(TransformerMixin, object):
     
     
 class YeardayExtractor(TransformerMixin, object):
-    """ Transformer giving the days from the Monday this week and the next week
+    """ Transformer giving the days since the since the beginning of the year
     
     Note: This Transformer fixes the number of days in each year to 366 and deducts 1, so it effectively pictures values on the interval (0...365).
         Thus this Transformer is giving an absolute values, not a relative!.
@@ -440,4 +504,38 @@ class YearfracExtractor(TransformerMixin, object):
         t = self._transfunc(dtval)
         d.update( {self.feature_names_[0]: t} )
     def get_feature_names_(self):
-        return self.feature_names_   
+        return self.feature_names_
+
+
+class TimeMinMaxTransformer(TransformerMixin, object):
+    """ inspect for the lowest and highest value in the time column and scale to the interval [0,1]
+    """
+    def __init__(self):
+        self._min_time = None
+        self._max_time = None
+
+    def _scalefkt(self, dt_val):
+        val = (dt_val - self._min_time).total_seconds() / self._time_dt_sec
+        return np.clip(val, 0., 1.)
+
+    def fit(self, X, y=None, **fit_params):
+        assert_dfncol(X, 1)
+        # assert( isinstance(X.iloc[:,0].dtype, dt.datetime) ) #FIXME simple check for type
+        self.incols = list(X.columns)
+        self.feature_names_ = [self.incols[0] + '_minmaxscaled']
+        self._min_time = np.min(X.iloc[:,0])
+        self._max_time = np.min(X.iloc[:, 0])
+        self._time_dt_sec = (self._max_time - self._min_time).total_seconds()
+        return self
+    def transform(self, X):
+        assert_dfncol(X, 1)
+        # assert( isinstance(X.iloc[:,0].dtype, dt.datetime) ) #FIXME simple check for type
+        Xt = pd.DataFrame( X.iloc[:,0].apply( self._scalefkt )
+        Xt.columns = self.feature_names_
+        return Xt
+    def transform_dict(self, d):
+        dtval = d.pop(self.incols[0])
+        t = self._transfunc(dtval)
+        d.update({self.feature_names_[0]: t})
+    def get_feature_names_(self):
+        return self.feature_names_

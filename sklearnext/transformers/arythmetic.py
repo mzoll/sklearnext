@@ -86,6 +86,7 @@ class LogTransformer(_simpleFuncTransformer, object):
     def __init__(self):
         _simpleFuncTransformer.__init__(self, fun=np.log, suffix='_log')
     
+
 class Log10Transformer(TransformerMixin, object):
     """ build the (natural) logarithm of these numbers """
     def __init__(self):
