@@ -159,7 +159,7 @@ class HourWeekdayDayMonthYearTransformer(TransformerMixin):
                 s = s.astype('uint8')
                 dfs.append(s)
             if self.ext_year:
-                s = X[self.varname].apply(lambda t: t.year)  )
+                s = X[self.varname].apply(lambda t: t.year)
                 s.name = self.varname + '_year'
                 s = s.astype('uint8')
                 dfs.append(s)
@@ -530,7 +530,7 @@ class TimeMinMaxTransformer(TransformerMixin, object):
     def transform(self, X):
         assert_dfncol(X, 1)
         # assert( isinstance(X.iloc[:,0].dtype, dt.datetime) ) #FIXME simple check for type
-        Xt = pd.DataFrame( X.iloc[:,0].apply( self._scalefkt )
+        Xt = pd.DataFrame( X.iloc[:,0].apply( self._scalefkt) )
         Xt.columns = self.feature_names_
         return Xt
     def transform_dict(self, d):
