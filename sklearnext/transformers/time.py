@@ -15,6 +15,7 @@ from ..base import assert_dfncol
 from sklearn.base import TransformerMixin 
 
 import calendar
+import pytz
 
 
 class DeltaSecTransformer(TransformerMixin, object):
@@ -539,3 +540,43 @@ class TimeMinMaxTransformer(TransformerMixin, object):
         d.update({self.feature_names_[0]: t})
     def get_feature_names_(self):
         return self.feature_names_
+
+
+class TimezoneTransformer(TransformerMixin, object):
+    """ inspect for the lowest and highest value in the time column and scale to the interval [0,1]
+
+    Parameters
+    ----------
+    from_timezone_str: str
+        will be reinterpreted by pytz.timezone as a timezone the timestamp is transposed from
+    to_timezone_str: str
+        will be reinterpreted by pytz.timezone as a timezone the timestamp is transposed to
+    """
+    def __init__(self, from_timezone_str, to_timezone_str):
+        self.from_timezone_str = from_timezone_str
+        self._from_timezone = pytz.timezone(self.from_timezone_str)
+        self.to_timezone_str = to_timezone_str
+        self._to_timezone = pytz.timezone(self.to_timezone_str)
+
+    def _scalefkt(self, dt_val):
+        return dt.replace(tzinfo=self._from_timezone).astimezone(self._to_timezone)
+
+    def fit(self, X, y=None, **fit_params):
+        assert_dfncol(X, 1)
+        # assert( isinstance(X.iloc[:,0].dtype, dt.datetime) ) #FIXME simple check for type
+        self.incols = list(X.columns)
+        self.feature_names_ = [self.incols[0] + '_as' + ]
+        return self
+    def transform(self, X):
+        assert_dfncol(X, 1)
+        # assert( isinstance(X.iloc[:,0].dtype, dt.datetime) ) #FIXME simple check for type
+        Xt = pd.DataFrame( X.iloc[:,0].apply( self._scalefkt) )
+        Xt.columns = self.feature_names_
+        return Xt
+    def transform_dict(self, d):
+        dtval = d.pop(self.incols[0])
+        t = self._transfunc(dtval)
+        d.update({self.feature_names_[0]: t})
+    def get_feature_names_(self):
+        return self.feature_names_
+
