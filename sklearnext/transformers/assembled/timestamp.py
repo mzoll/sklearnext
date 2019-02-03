@@ -16,61 +16,54 @@ def TimestampTransformer(colname):
         name of column for the timestamp
     :return: TransformerPipe
     """
-    tf1 = TransformerPipe([
-        ('starttimeExtr', ColumnsSelect(colname)),
+    tp = TransformerPipe([
+        ('timestamp_select', ColumnsSelect(colname)),
         ('native_time', FeatureUnion([
             # do things for the hour of the day as an periodic
-            ('', TransformerPipe([
-                ('', WeekdayExtractor(discrete=False, normalize=True)),
+            ('hour_of_day', TransformerPipe([
+                ('extract', WeekdayExtractor(discrete=False, normalize=True)),
                 ('sincosTrans', CyclicSineCosineTransformer(periodicity=1, pure_positive=False))
             ])),
 
             # do things for the weekday as an absolute label and periodic
-            ('', FeatureUnion([
-                ('', TransformerPipe([
-                    ('', WeekdayExtractor(discrete=True)),
+            ('week', FeatureUnion([
+                ('weekday', TransformerPipe([
+                    ('extract', WeekdayExtractor(discrete=True)),
                     ('labelEnc', OneHotTransformer())
                 ])),
-                ('', TransformerPipe([
-                    ('', WeekdayExtractor(discrete=False, normalize=True)),
+                ('day_of_week', TransformerPipe([
+                    ('extract', WeekdayExtractor(discrete=False, normalize=True)),
                     ('sincosTrans', CyclicSineCosineTransformer(periodicity=1, pure_positive=False))
                 ]))
             ])),
 
             # do things for the progress of the month
-            ('dayofmonth_relative', TransformerPipe([
-                ('monthday', MonthfracExtractor()),
+            ('day_in_month', TransformerPipe([
+                ('extract', MonthfracExtractor()),
                 ('sincosTrans', CyclicSineCosineTransformer(periodicity=1, pure_positive=False))  # periodic
             ])),
 
             # do things for the day of the month as an absolute label
-            ('dayofmonth_absolute', TransformerPipe([
-                ('monthday', MonthdayExtractor(discrete=True, normalize=false)),
+            ('monthday', TransformerPipe([
+                ('extract', MonthdayExtractor(discrete=True, normalize=False)),
                 ('labelEnc', OneHotTransformer())  # label
             ])),
 
             # do things for the fraction of the year
-            ('dayofyear_relative', TransformerPipe([
-                ('', YeardayFracExtractor(discrete=False, normalize=1)),
-                ('', FeatureUnion([
-
-                    ('sincosTrans', CyclicSineCosineTransformer(periodicity=1, pure_positive=False)) #periodic
-                ])),
-
+            ('time_in_year', TransformerPipe([
+                ('extract', YearfracExtractor(discrete=False)),
+                ('sincosTrans', CyclicSineCosineTransformer(periodicity=1, pure_positive=False)) #periodic
             ])),
 
             # do things for the year as an absolute label
-            ('dayofyear_relative', TransformerPipe([
-                ('', HourWeekdayDayMonthYearTransformer(False, False, False, False, True)),
+            ('year', TransformerPipe([
+                ('extract', HourWeekdayDayMonthYearTransformer(False, False, False, False, True)),
                 ('labelEnc', OneHotTransformer())
             ])),
 
             # take the absolute range of the timestamp and picture it on [0, 1]
-            ('', TimeMinMaxTransformer())
-
-
-
+            ('abs_time', TimeMinMaxTransformer())
         ]))
     ])
 
-    return tf1
+    return tp

@@ -397,10 +397,12 @@ class MonthfracExtractor(TransformerMixin, object):
 class YeardayExtractor(TransformerMixin, object):
     """ Transformer giving the days since the since the beginning of the year
     
-    Note: This Transformer fixes the number of days in each year to 366 and deducts 1, so it effectively pictures values on the interval (0...365).
-        Thus this Transformer is giving an absolute values, not a relative!.
+    Note: This Transformer fixes the number of days in each year to 366 and deducts from this 1, so it effectively pictures values on the interval (1...366).
+        To account for leap years and the occcurence of the extra day in February, the beginning of a year is per default is fixed to the
+        1st of March and has label=1, therefore the 28th of February has label 365 and the 29th of February if applicable has label 365
+
         (Explanation: Yearday is a bit special in the sense that the days in each year are varying (leapyears) and so do not reflect 
-        how far along into a year the time in question is, or how muchg time/days are left to the beginning of the next year.
+        how far along into a year the time in question is, or how much time/days are left to the beginning of the next year.
         For this purpose use the YearfracExtractor instead!)
     
     Parameters
@@ -409,28 +411,53 @@ class YeardayExtractor(TransformerMixin, object):
         use descrete (non-fractional) values instead of continious floats (default: False)
     normalize : bool
         the output will be expressed in the interval [0..1]
+    start_march : bool
+        let the year start on the first of march, so that an eventual 29th of February can be the 366th day
     """
+    #FIXME solve this with a cummulative dictionary
+
     @staticmethod
     def dt_yearday_disc(dtval):
         days_to_now = 0
         for i in range(dtval.month-1):
-            days_to_now += calendar.monthrange(i+1)
+            days_to_now += calendar.monthrange(dtval.year, i+1)[1]
         return days_to_now + dtval.day -1
     @staticmethod
     def dt_yearhday_cont(dtval):
         days_to_now = 0
         for i in range(dtval.month-1):
-            days_to_now += calendar.monthrange(i+1)
+            days_to_now += calendar.monthrange(dtval.year, i+1)[1]
         return days_to_now + dtval.day -1. + (dtval.hour + dtval.minute/60. + dtval.second/3600.) / 24.
-        
-    def __init__(self, discrete = False, normalize=False):
+    @staticmethod
+    def dt_yearday_disc_march(dtval):
+        days_to_now = 0
+        m_marchfixed = (dtval.month - 3) % 12
+        for i in range(m_marchfixed):
+            days_to_now += calendar.monthrange(dtval.year, (m_marchfixed + 3) % 12 )[1]
+        return days_to_now + dtval.day -1
+    @staticmethod
+    def dt_yearhday_cont_march(dtval):
+        days_to_now = 0
+        m_marchfixed = (dtval.month - 3) % 12
+        for i in range(m_marchfixed):
+            days_to_now += calendar.monthrange(dtval.year, (m_marchfixed + 3) % 12)[1]
+        return days_to_now + dtval.day -1 + (dtval.hour + dtval.minute/60. + dtval.second/3600.) / 24.
+
+    def __init__(self, discrete = False, normalize=False, start_march=True):
         self.discrete = discrete
         self.normalize = normalize
-        
-        if self.discrete:
-            self._transfunc = self.dt_yearday_disc
+        self.start_march = start_march
+
+        if self.start_march:
+            if self.discrete:
+                self._transfunc = self.dt_yearday_disc_march
+            else:
+                self._transfunc = self.dt_yearday_cont_march
         else:
-            self._transfunc = self.dt_yearday_cont
+            if self.discrete:
+                self._transfunc = self.dt_yearday_disc
+            else:
+                self._transfunc = self.dt_yearday_cont
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
         #assert( isinstance(X.iloc[:,0].dtype, dt.datetime) ) #FIXME simple check for type
@@ -443,18 +470,18 @@ class YeardayExtractor(TransformerMixin, object):
         Xt = pd.DataFrame( X.iloc[:,0].apply(self._transfunc) )
         if self.normalize:
             Xt = Xt.apply(lambda v: v/366., axis=1)
-        Xt.columns = self.feature_names_    
-        return Xt    
-    def transform_dict(self, d):    
+        Xt.columns = self.feature_names_
+        return Xt
+    def transform_dict(self, d):
         dtval = d.pop(self.incols[0])
         t = self._transfunc(dtval)
         if self.normalize:
             t /= 366.
         d.update( {self.feature_names_[0]: t} )
     def get_feature_names_(self):
-        return self.feature_names_  
-    
-    
+        return self.feature_names_
+
+
 class YearfracExtractor(TransformerMixin, object):
     """ Transformer giving the fractional time into this year 
     
@@ -466,18 +493,20 @@ class YearfracExtractor(TransformerMixin, object):
     discrete : bool
         use descrete (non-fractional) values instead of continious floats (default: False)
     """
+    # FIXME solve this with a cummulative dictionary
+    lookup_cumdays = {}
     @staticmethod
     def dt_yearfrac_disc(dtval):
         days_to_now = 0
         for i in range(dtval.month-1):
-            days_to_now += calendar.monthrange(i+1)
+            days_to_now += calendar.monthrange(dtval.year, i+1)[1]
         days_in_year= 366 if calendar.isleap(dtval.year) else 365
         return (days_to_now + dtval.day -1) / days_in_year
     @staticmethod
-    def dt_yearhfrac_cont(dtval):
+    def dt_yearfrac_cont(dtval):
         days_to_now = 0
         for i in range(dtval.month-1):
-            days_to_now += calendar.monthrange(i+1)
+            days_to_now += calendar.monthrange(dtval.year, i+1)[1]
         days_in_year= 366 if calendar.isleap(dtval.year) else 365
         return (days_to_now + dtval.day -1. + (dtval.hour + dtval.minute/60. + dtval.second/3600.) / 24. ) / days_in_year
     
@@ -525,7 +554,7 @@ class TimeMinMaxTransformer(TransformerMixin, object):
         self.incols = list(X.columns)
         self.feature_names_ = [self.incols[0] + '_minmaxscaled']
         self._min_time = np.min(X.iloc[:,0])
-        self._max_time = np.min(X.iloc[:, 0])
+        self._max_time = np.max(X.iloc[:, 0])
         self._time_dt_sec = (self._max_time - self._min_time).total_seconds()
         return self
     def transform(self, X):
@@ -565,7 +594,7 @@ class TimezoneTransformer(TransformerMixin, object):
         assert_dfncol(X, 1)
         # assert( isinstance(X.iloc[:,0].dtype, dt.datetime) ) #FIXME simple check for type
         self.incols = list(X.columns)
-        self.feature_names_ = [self.incols[0] + '_as' + ]
+        self.feature_names_ = [self.incols[0] + '_as' + self.to_timezone_str]
         return self
     def transform(self, X):
         assert_dfncol(X, 1)
