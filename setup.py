@@ -10,6 +10,6 @@ setup(name='sklearnext',
       packages=['sklearnext'],
       zip_safe=False,
       keywords='sklearn pipeline data analysis',
-      install_requires=['pytest, scikit-learn, numpy, pandas'],
+      install_requires=['pytest', 'scikit-learn', 'numpy', 'pandas'],
       #classifieres=['Programming Language :: Python :: 3.6']
 )
