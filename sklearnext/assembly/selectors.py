@@ -12,9 +12,7 @@ import pandas as pd
 
 from sklearn.base import TransformerMixin
 
-#=================
-# Transformers
-#=================
+
 class ColumnsAll(TransformerMixin, object):
     """ passes through all columns unaltered, a unitary operation """
     def fit(self, X, y=None, **fit_params):
