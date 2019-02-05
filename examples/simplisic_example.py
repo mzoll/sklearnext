@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 simplistic example showing how to use the modules contained in sklearnext
 """
