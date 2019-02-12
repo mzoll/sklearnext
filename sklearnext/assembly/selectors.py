@@ -1,14 +1,9 @@
-'''
+"""
 Created on Dec 8, 2017
 
 @author: marcel.zoll
-'''
+"""
 
-
-import sys, copy
-import itertools
-import numpy as np
-import pandas as pd
 
 from sklearn.base import TransformerMixin
 
@@ -22,10 +17,11 @@ class ColumnsAll(TransformerMixin, object):
         assert( set(self.feature_names) == set(X.columns.values) )
         return X
     def transform_dict(self, d):
-        assert( set(self.feature_names) == set(d.keys()))
+        #assert( set(self.feature_names) == set(d.keys()))  # NOTE disabled for speed
         return d
     def get_feature_names(self):
         return self.feature_names
+
 
 class ColumnsSelect(TransformerMixin, object):
     """ passes through only the specified columns, a unitary operation
@@ -59,6 +55,7 @@ class ColumnsSelect(TransformerMixin, object):
         return dt
     def get_feature_names(self):
         return self.feature_names
+
     
 class Tettletale(TransformerMixin, object):
     """ For diagnostic: is noisy about the things it encounters  
@@ -79,7 +76,7 @@ class Tettletale(TransformerMixin, object):
             print(X.info())
             if y is not None:
                 print("pandas Series: ", y.name, y.shape)
-        self.feature_names = X.columns
+        self.feature_names = X.columns.values
         return self
     def transform(self, X):
         if self.transform_verbose:

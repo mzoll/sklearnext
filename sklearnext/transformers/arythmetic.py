@@ -27,9 +27,9 @@ class Multiplication(TransformerMixin, object):
         if isinstance(self.factors, list):
             self.factors = np.array(self.factors)
     def fit(self, X, y= None, **fit_params):
-        self.incols = X.columns
-        if len(self.factors)!=X.shape[1]:
-            print(len(self.factors), X.shape[1])
+        self.incols = X.columns.values
+        if len(self.factors) != X.shape[1]:
+            #print(len(self.factors), X.shape[1])
             raise Exception("dimensions do not match")
         self.feature_names_ = [ ic+'_norm' for ic in self.incols ]
         return self
@@ -61,10 +61,10 @@ class _simpleFuncTransformer(TransformerMixin):
         an suffix to be applied
     """
     def __init__(self, func, suffix):
-        self.func= func
+        self.func = func
         self.suffix = suffix
     def fit(self, X, y= None, **fit_params):
-        self.incols = X.columns
+        self.incols = X.columns.values
         self.feature_names_ = [ ic+self.suffix for ic in self.incols ]
         return self
     def transform(self, X):

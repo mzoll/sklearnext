@@ -27,7 +27,7 @@ class SKLTransformerWrapper(TransformerMixin):
         self.suffix = suffix
     def fit(self, X, y=None, **fit_params):
         #assert_dfncol(X, 1)
-        self.incols = X.columns
+        self.incols = X.columns.values
         self.skltransformer.fit(X.values)
         Xtnp = self.skltransformer.transform(X.values[0:1]) #transform the first row
         #determine feature names
@@ -75,7 +75,7 @@ class SKLEstimatorWrapper(MetaEstimatorMixin, TransformerMixin, object):
         self.feature_name = feature_name
     def fit(self, X, y, **fit_params):
         #print("shapes ", X.shape, y.shape)
-        self.incols = X.columns        
+        self.incols = X.columns.values
         self.estimator.fit(X.values, y.values, **fit_params)
         return self
     def transform(self, X):

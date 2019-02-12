@@ -43,16 +43,16 @@ class DeltaSecTransformer(TransformerMixin, object):
         self.fill_na = fill_na
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 2)
-        self.incolumns = X.columns
-        if len(self.incolumns) != 2:
+        self.incols = X.columns.values
+        if len(self.incols) != 2:
             raise Exception('Expected to calculate the difference of two datetime columns')
-        self.feature_names_ = ['_'.join(X.columns)+'_diffsec']
+        self.feature_names_ = ['_'.join(self.incols)+'_diffsec']
         return self
     def transform(self, X):
         assert_dfncol(X, 2)
         
-        t1 = X[self.incolumns[0]]
-        t2 = X[self.incolumns[1]]
+        t1 = X[self.incols[0]]
+        t2 = X[self.incols[1]]
         if not t1.isnull().values.any() and not t2.isnull().values.any():
             self.fast_path = True
 
@@ -62,8 +62,8 @@ class DeltaSecTransformer(TransformerMixin, object):
             return pd.DataFrame(dtime, columns= self.feature_names_)
         else: #execute line by line; check input
             def xthelper(row):
-                t1v = row[self.incolumns[0]]
-                t2v = row[self.incolumns[1]]
+                t1v = row[self.incols[0]]
+                t2v = row[self.incols[1]]
                 if t2v is None:
                     return self.fill_na[1]
                 elif t1v is None:
@@ -73,8 +73,8 @@ class DeltaSecTransformer(TransformerMixin, object):
             Xt = X.apply(xthelper, axis=1)
             return pd.DataFrame(Xt, columns= self.feature_names_)
     def transform_dict(self, d):
-        t1 = d.pop(self.incolumns[0])
-        t2 = d.pop(self.incolumns[1])
+        t1 = d.pop(self.incols[0])
+        t2 = d.pop(self.incols[1])
         d[self.feature_names_[0]] = (t2 - t1).total_seconds()
         return d            
     def get_feature_names(self):

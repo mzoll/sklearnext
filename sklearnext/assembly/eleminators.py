@@ -10,7 +10,7 @@ from sklearn.base import TransformerMixin
 class ColumnsNone(TransformerMixin, object):
     """ passes through nothing """
     def fit(self, X, y=None, **fit_params):
-        self.incols = X.columns
+        self.incols = X.columns.values
         self.feature_names = []
         return self
     def transform(self, X):
@@ -24,12 +24,12 @@ class ColumnsNone(TransformerMixin, object):
 class FeatureEliminator(TransformerMixin, object):
     """ eliminate all collumns which have not diversive values """
     def fit(self, X, y=None, **fit_params):
-        self.incols = X.columns
+        self.incols = X.columns.values
 
         def checkEqualIvo(lst):
             return not lst or lst.count(lst[0]) == len(lst)
         keep_col_idx = []
-        for i in range( len(X.columns)):
+        for i in range( X.shape[1]):
             if not checkEqualIvo(X.iloc[:, i]):
                 keep_col_idx.append(i)
             """

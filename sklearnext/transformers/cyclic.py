@@ -47,7 +47,7 @@ class CyclicSineCosineTransformer(TransformerMixin, object):
 
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
-        self.incols = list(X.columns)
+        self.incols = X.columns.values
         self.feature_names = [self.incols[0] + '_cyclicsin', self.incols[0] + '_cycliccos']
         return self
 

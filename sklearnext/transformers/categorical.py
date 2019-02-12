@@ -89,7 +89,7 @@ class OneHotTransformer(TransformerMixin, object):
         return '_'.join([self.incols[0], str(cn)])    
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
-        self.incols = X.columns
+        self.incols = X.columns.values
         
         if self._fit_categories: 
             self.categories_ = list(X.iloc[:,0].unique())
@@ -202,8 +202,8 @@ class ForceCategoryTransformer(TransformerMixin, object):
         self.ordered = ordered
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
-        self.incols = X.columns
-        self.feature_names_ = list(X.columns)
+        self.incols = X.columns.values
+        self.feature_names_ = self.incols
         if self.classes_ is None:
             x = X.iloc[:,0].astype('category')
             self.classes_ = x.cat.categories.values
@@ -269,8 +269,8 @@ class TopLabelsTransformer(TransformerMixin, object):
         self.default_levels_ = []
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
-        self.incols = X.columns
-        self.feature_names_ = [ X.columns[0] ]
+        self.incols = X.columns.values
+        self.feature_names_ = self.incols
         
         levels, counts = np.unique( X.iloc[:,0], return_counts=True )
         idx = np.array(list(reversed(np.argsort(counts))))

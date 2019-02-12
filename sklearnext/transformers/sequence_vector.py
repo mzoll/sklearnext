@@ -97,11 +97,11 @@ class SequenceVectorEncoder(TransformerMixin, object):
         
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
-        self._incols= X.columns
+        self._incols= X.columns.values
         if self._fit_maxentries:
             self.maxentries_ = max([len(vec) for vec in X.iloc[:,0].values])
         
-        self.feature_names_ = [ "{}_{}".format(X.columns[0], i) for i in range(self.maxentries_)]
+        self.feature_names_ = [ "{}_{}".format(X.columns.values[0], i) for i in range(self.maxentries_)]
             
         if self._fit_categories:
             s = set([])
@@ -227,11 +227,11 @@ class SequenceVectorEncoderNEXT(TransformerMixin, object):
         self._fit_maxentries = maxentries is None
     def fit(self, X, y=None, **fit_params):
         #assert_dfncol(X, 1)
-        self._incols= X.columns
+        self._incols= X.columns.values
         if self._fit_maxentries:
             self.maxentries_ = max([len(vec) for vec in X.iloc[:,0].values])
         
-        self.feature_names_ = [ "{}_{}".format(X.columns[0], i) for i in range(self.maxentries_)]
+        self.feature_names_ = [ "{}_{}".format(X.columns.values[0], i) for i in range(self.maxentries_)]
             
         if self._fit_categories:
             s = set()
@@ -379,7 +379,7 @@ class SequenceVectorCheckboxes(TransformerMixin, object):
         return "{}_{}".format(self._incols[0], classname)
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
-        self._incols = X.columns
+        self._incols = X.columns.values
         
         if self._fit_classes:
             s = set()
@@ -457,7 +457,7 @@ class SequenceVectorElement(TransformerMixin, object):
         self.default = default
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
-        self._incols = X.columns
+        self._incols = X.columns.values
         self.feature_names_ = [self._incols[0]+'_'+str(self.nth)]
         return self
     def transform(self, X):
@@ -517,7 +517,7 @@ class SequenceVectorElementRemove(TransformerMixin, object):
         self.at_front = at_front
     def fit(self, X, y=None, **fit_params):
         assert_dfncol(X, 1)
-        self._incols = X.columns
+        self._incols = X.columns.values
         self.feature_names_ = [self._incols[0]+'_mod']
         return self
     def transform(self, X):

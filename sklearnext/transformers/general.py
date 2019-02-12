@@ -26,7 +26,7 @@ class SparseBinarizer(TransformerMixin, object):
     def __init__(self):
         pass
     def fit(self, X, y= None, **fit_params):
-        self.incols= list(X.columns)
+        self.incols= X.columns.values
         return self
     def transform(self, X):
         Xt = pd.DataFrame()
@@ -57,7 +57,7 @@ class ObjectLengthTransformer(TransformerMixin, object):
         pass
     def fit(self, X, y= None, **fit_params):
         assert_dfncol(X, 1)
-        self.incols = X.columns
+        self.incols = X.columns.values
         self.feature_names_ = [ self.incols[0] + '_length' ]
         return self
     def transform(self, X):
