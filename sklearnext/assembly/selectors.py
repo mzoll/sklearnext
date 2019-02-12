@@ -14,13 +14,15 @@ from sklearn.base import TransformerMixin
 
 
 class ColumnsAll(TransformerMixin, object):
-    """ passes through all columns unaltered, a unitary operation """
+    """ passes through all columns unaltered, a unitary operation (checks are in place) """
     def fit(self, X, y=None, **fit_params):
-        self.feature_names = X.columns
+        self.feature_names = X.columns.values
         return self
     def transform(self, X):
+        assert( set(self.feature_names) == set(X.columns.values) )
         return X
     def transform_dict(self, d):
+        assert( set(self.feature_names) == set(d.keys()))
         return d
     def get_feature_names(self):
         return self.feature_names
@@ -41,9 +43,10 @@ class ColumnsSelect(TransformerMixin, object):
         else:
             raise TypeError('varname_list needs to be list or str (depricated)')
     def fit(self, X, y=None, **fit_params):
+        assert( set(self.feature_names).issubset(set(X.columns.values)))
         return self
     def transform(self, X):
-        ''' inert operation: just return all selected variables '''
+        """ inert operation: just return all selected variables """
         return X[self.feature_names]
     def transform_dict(self, d):
 #     del_keys= []
