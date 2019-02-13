@@ -12,3 +12,7 @@
 *.project
 *.pydevproject
 *.idea
+
+# any Ipython notebook checkpoints
+*/.ipynb_checkpoints/*
+*-checkpoint.ipynb
