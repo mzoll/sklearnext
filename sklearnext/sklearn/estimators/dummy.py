@@ -46,4 +46,3 @@ class DummyRegressor(BaseEstimator, object):
         return self
     def predict(self, X):
         return np.linspace(self.min_, self.max_, len(X))
-    
