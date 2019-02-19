@@ -26,11 +26,11 @@ class SKLEstimatorExtender(MetaEstimatorMixin, object):
         self.estimator = estimator
     def fit(self, X, y, **fit_params):
         #print("shapes ", X.shape, y.shape)
-        self.incols = X.columns
+        self.incols = X.columns.values
         self.estimator.fit(X.values, y.values, **fit_params)
         return self
     def predict(self, X):
-        return pd.Series( self.estimator.predict(X.values), index = X.index )
+        return pd.Series( self.estimator.predict(X.values), index=X.index )
     @property
     def feature_importances_(self):
         return self.estimator.feature_importances_
