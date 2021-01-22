@@ -34,7 +34,7 @@ class SparseBinarizer(TransformerMixin, object):
             return not (pd.isnull(v) or v==0) 
         for c in X.columns:
             Xt[c] = X[c].apply(chelper)        
-        return Xt.to_sparse(fill_value=False)
+        return Xt.f.astype(pd.SparseDtype("bool", False))
     def transform_dict(self, d):
         for k,v in d.items():
             if np.isnan(v) or v is None or v == 0:

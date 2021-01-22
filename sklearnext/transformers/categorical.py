@@ -142,7 +142,7 @@ class OneHotTransformer(TransformerMixin, object):
         
         #--- if sparse is requested
         if self.sparse_output:
-            return Xt.to_sparse(fill_value=False)
+            return Xt.astype(pd.SparseDtype("bool", False))
         return Xt
     def transform_dict(self, d):
         v = d.pop(self.incols[0])
