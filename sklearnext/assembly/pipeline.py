@@ -16,8 +16,8 @@ from sklearn.base import TransformerMixin, MetaEstimatorMixin
 
 #from sklearn.pipeline import _fit_transform_one, _transform_one, _fit_one_transformer
 from sklearn import clone
-from sklearn.externals import six
-from sklearn.externals.joblib import Parallel, delayed, Memory
+import six
+from joblib import Parallel, delayed, Memory
 from sklearn.utils.validation import check_memory
 
 from sklearn import pipeline

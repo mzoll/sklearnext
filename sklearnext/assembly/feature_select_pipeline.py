@@ -11,7 +11,7 @@ import pandas as pd
 
 from sklearn.utils.metaestimators import _BaseComposition
 from sklearn import pipeline 
-from sklearn.pipeline import _fit_transform_one, _transform_one, _fit_one_transformer
+#from sklearn.pipeline import _fit_transform_one, _transform_one, _fit_one_transformer
 from sklearn import clone
 from sklearn.utils import check_array, safe_mask
 from sklearn.utils.validation import check_memory

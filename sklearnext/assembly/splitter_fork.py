@@ -11,7 +11,7 @@ import pandas as pd
 
 from sklearn.base import BaseEstimator, TransformerMixin, MetaEstimatorMixin
 
-from sklearn.externals.joblib import Parallel, delayed
+from joblib import Parallel, delayed
 
 from sklearnext.transformers import OneHotTransformer
 
