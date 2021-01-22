@@ -151,15 +151,11 @@ class TransformerPipe(object):
             fit_params_steps[step][param] = pval
         Xt = X
         for step_idx, (name, transformer) in enumerate(self.steps):
-            if transformer is None:
-                pass
-            else:
-                if hasattr(memory, 'cachedir') and memory.cachedir is None:
-                    # we do not clone when caching is disabled to preserve
-                    # backward compatibility
-                    cloned_transformer = transformer
-                else:
-                    cloned_transformer = clone(transformer)
+            if transformer is not None:
+                # cloned_transformer = clone(transformer)  #DANGER breaks; fix by making a deepcopy @mzoll_200122
+                # NOTE: we ought to make copies of every each transformer
+                # before fitting, so that we do NOT overwrite parameter-sets of multiple parallel referenced Transformers
+                cloned_transformer = copy.deepcopy(transformer)
                 # Fit or load from cache the current transfomer
                 Xt, fitted_transformer = fit_transform_one_cached(
                     cloned_transformer, Xt, y, weight=None,
@@ -188,27 +184,22 @@ class TransformerPipe(object):
             step, param = pname.split('__', 1)
             fit_params_steps[step][param] = pval
         Xt = X
-        #for all steps except the last perform fit_transform
+        #for all processing-steps/transformers, except the last one, perform fit_transform
         for step_idx, (name, transformer) in enumerate(self.steps[:-1]):
-            if transformer is None:
-                pass
-            else:
-                if hasattr(memory, 'cachedir') and memory.cachedir is None:
-                    # we do not clone when caching is disabled to preserve
-                    # backward compatibility
-                    cloned_transformer = transformer
-                else:
-                    cloned_transformer = clone(transformer)
-                # Fit or load from cache the current transfomer
+            if transformer is not None:
+                #cloned_transformer = clone(transformer)  #DANGER breaks; fix by making a deepcopy @mzoll_200122
+                # NOTE: we ought to make copies of every each transformer
+                # before fitting, so that we do NOT overwrite parameter-sets of multiple parallel referenced Transformers
+                cloned_transformer= copy.deepcopy(transformer)
+                # Fit or load from cache the current transformer
                 Xt, fitted_transformer = fit_transform_one_cached(
-                    cloned_transformer, Xt, y, weight=None, 
-**fit_params_steps[name])
+                    cloned_transformer, Xt, y, weight=None, **fit_params_steps[name])
                 # Replace the transformer of the step with the fitted
                 # transformer. This is necessary when loading the transformer
                 # from the cache.
                 self.steps[step_idx] = (name, fitted_transformer)
         
-        #for the last step only fit 
+        #for the last processing step/transformer only fit
         self.steps[-1][1].fit(Xt, y, **fit_params)
             
         return self

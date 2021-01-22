@@ -37,7 +37,7 @@ class ColumnsSelect(TransformerMixin, object):
         elif isinstance(column_names, str):
             self.feature_names = [column_names]
         else:
-            raise TypeError('varname_list needs to be list or str (depricated)')
+            raise TypeError('varname_list needs to be list or str (deprecated)')
     def fit(self, X, y=None, **fit_params):
         assert( set(self.feature_names).issubset(set(X.columns.values)))
         return self
