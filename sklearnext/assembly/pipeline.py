@@ -200,7 +200,11 @@ class TransformerPipe(object):
                 self.steps[step_idx] = (name, fitted_transformer)
         
         #for the last processing step/transformer only fit
-        self.steps[-1][1].fit(Xt, y, **fit_params)
+        name, transformer = self.steps[-1]
+        cloned_transformer = copy.deepcopy(transformer)
+        Xt, fitted_transformer = fit_one_cached(
+            cloned_transformer, Xt, y, weight=None, **fit_params_steps[name])
+        self.steps[-1] = (name, fitted_transformer)
             
         return self
     def transform(self, X):
@@ -271,7 +275,8 @@ class TransformerPipe(object):
 # _transform_one and _fit_transform_one to have the same signature to
 #  factorize the code in ColumnTransformer
 def _fit_one_transformer(transformer, X, y, weight=None, **fit_params):
-    return transformer.fit(X, y)
+    return None, transformer.fit(X, y, **fit_params)
+
 
 
 def _transform_one(transformer, X, y, weight, **fit_params):
